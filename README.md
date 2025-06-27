@@ -80,15 +80,6 @@ Any modern browser supporting JavaScript ES6+, FileReader API, and CSS Grid
 
 ## Scientific Methods
 
-### Growth Rate Calculation
-Tumor Growth Rate (TGR) is calculated using the formula:
-```
-r(x→y) = ln(V_y / V_x) / (t_y - t_x)
-```
-Where:
-- `V_x`, `V_y` are volumes at times x and y
-- `t_x`, `t_y` are the corresponding time points
-
 ### Statistical Analysis
 - **Mann-Whitney U Test**: Non-parametric comparison between groups
 - **Effect Size**: Cohen's d calculation for practical significance
