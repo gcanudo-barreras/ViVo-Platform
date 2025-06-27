@@ -1,4 +1,4 @@
-![](assets/ViVo_day.png)
+<img src="assets/ViVo_day.png" alt="ViVo Logo" height="150"/>
 
 # ViVo: In Vivo Metrics
 
