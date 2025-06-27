@@ -1,4 +1,4 @@
-<div align="center" src="assets/ViVo_day.png" alt="ViVo Logo" height="300"/>
+<div align="center"><img src="assets/ViVo_day.png" alt="ViVo Logo" height="300"/></div>
 
 # ViVo: In Vivo Metrics
 
