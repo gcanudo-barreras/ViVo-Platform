@@ -1,7 +1,5 @@
 <div align="center"><img src="assets/ViVo_day.png" alt="ViVo Logo" height="300"/></div>
 
-# <p align="center">ViVo: In Vivo Metrics</p>
-
 <p align="center>"A comprehensive web-based application for analyzing in vivo anticancer efficacy data through advanced statistical methods and interactive visualizations.</p>
 
 ## Features
