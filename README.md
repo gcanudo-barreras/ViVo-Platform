@@ -1,3 +1,5 @@
+![](assets/ViVo_day.png)
+
 # ViVo: In Vivo Metrics
 
 A comprehensive web-based application for analyzing in vivo anticancer efficacy data through advanced statistical methods and interactive visualizations.
