@@ -4,7 +4,7 @@
 
 <p align="center>"A comprehensive web-based application for analyzing in vivo anticancer efficacy data through advanced statistical methods and interactive visualizations.</p>
 
-Features
+## Features
 
 ### Core Functionality
 - **Data Import**: Support for CSV files with tumor volume or bioluminescence measurements
