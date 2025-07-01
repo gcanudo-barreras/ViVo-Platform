@@ -90,27 +90,6 @@ Basic detection algorithms identify:
 - **Growth Anomalies**: Unusual growth patterns
 - **Technical Artifacts**: Instrument-related errors
 
-## Key Improvements in Version 1.2
-
-### New Features
-- **Enhanced Matrix Functionality**: 
-  - Duplicate comparison prevention
-  - Smart Clear All button (only active when needed)
-  - Improved comparison titles showing actual r(x-y) values
-  - Matrix display matches software layout (removed empty diagonal elements)
-
-- **Advanced Statistical Comparisons**:
-  - Prevention of duplicate statistical comparisons
-  - Automated comparison validation
-  - Enhanced user feedback and notifications
-  - Improved comparison result display
-
-- **Professional Report Generation**:
-  - Clean matrix presentation without empty elements
-  - Proper statistical comparison labeling
-  - Enhanced visual presentation
-  - Embedded chart capture
-
 ### User Experience Enhancements
 - **Intuitive Interactions**: Clear visual feedback for all user actions
 - **Smart Validation**: Automatic prevention of invalid operations
@@ -190,7 +169,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Additional Statistics**: More statistical tests and methods
 - **Data Formats**: Support for additional file formats
 - **Performance**: Improved handling of larger datasets
-- **User Experience**: Enhanced interface and workflows
 
 ### Research Applications
 - **Preclinical Studies**: Drug efficacy evaluation
