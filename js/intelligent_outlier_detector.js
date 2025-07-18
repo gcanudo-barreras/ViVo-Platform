@@ -67,7 +67,6 @@ class IntelligentOutlierDetector {
             const flags = [];
 
             if (val <= 0) flags.push(this.makeFlag('IMPOSSIBLE_VALUE', animal, day, val));
-            else if (val < this.config.minSignalThreshold) flags.push(this.makeFlag('WEAK_SIGNAL', animal, day, val));
 
             if (prev && val > 0 && prev > 0 && day - prevDay > 0) {
                 const ratio = val / prev;
@@ -164,11 +163,10 @@ class IntelligentOutlierDetector {
         const getFlagSet = type => this.flags.filter(f => f.type === type);
         const addRec = r => this.specificRecommendations.push(r);
 
-        const drop = getFlagSet('LAST_DAY_DROP'), growth = getFlagSet('EXTREME_GROWTH'), decline = getFlagSet('EXTREME_DECLINE'), weak = getFlagSet('WEAK_SIGNAL');
+        const drop = getFlagSet('LAST_DAY_DROP'), growth = getFlagSet('EXTREME_GROWTH'), decline = getFlagSet('EXTREME_DECLINE');
 
         if (drop.length >= 3) addRec({ type: 'warning', category: 'temporal', title: 'Last Day Drops', message: `Detected ${drop.length} drops`, recommendation: 'Review last time point', affectedAnimals: [...new Set(drop.map(f => f.animalId))] });
         if (growth.length >= 2) addRec({ type: 'info', category: 'biological', title: 'Atypical Growth', message: `Extreme growth detected`, recommendation: 'Review instrument calibration', affectedAnimals: [...new Set(growth.map(f => f.animalId))] });
-        if (weak.length >= animals.length * 0.3) addRec({ type: 'warning', category: 'technical', title: 'Weak Signals', message: `${weak.length} measurements with weak signal`, recommendation: 'Adjust equipment sensitivity', affectedAnimals: [...new Set(weak.map(f => f.animalId))] });
         if (decline.length >= 2) {
             const ids = [...new Set(decline.map(f => f.animalId))];
             addRec({ type: 'warning', category: ids.length === 1 ? 'individual' : 'systematic', title: 'Extreme Decline', message: 'Multiple animals affected', recommendation: 'Review experimental conditions', affectedAnimals: ids });
