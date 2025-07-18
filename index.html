@@ -38,13 +38,36 @@
 
         <div class="control-panel">
             <div class="control-group">
-                <label for="fileInput">CSV Data File</label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput" accept=".csv,.txt" />
-                    <div class="file-input-label" id="fileLabel">
+                <label for="fileInput" style="color: #4facfe; font-weight: 600; margin-bottom: 0.5rem; display: block;">CSV Data File</label>
+                <div class="file-input-wrapper" style="position: relative; display: inline-block; width: 100%;">
+                    <input type="file" id="fileInput" accept=".csv,.txt" style="position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;" />
+                    <div class="file-input-label" id="fileLabel" style="
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        padding: 1.5rem; 
+                        background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1)); 
+                        border: 2px dashed rgba(79, 172, 254, 0.5); 
+                        border-radius: 12px; 
+                        color: #e0e0e0; 
+                        cursor: pointer; 
+                        transition: all 0.3s ease;
+                        min-height: 80px;
+                        text-align: center;
+                        font-size: 1rem;
+                    ">
                         Drag your CSV file here or click to select
-                        <br><small>Accepted formats: .csv, .txt</small>
+                        <br><small style="color: #a0a0a0; padding-left: 5px; margin-top: 2px;">Accepted formats: .csv, .txt</small>
                     </div>
+                </div>
+                <div style="margin: 8px 0 0 0; color: #a0a0a0; font-size: 0.9rem; line-height: 1.4;">
+                    <p style="margin: 0 0 8px 0;"><strong>Required structure:</strong> <i>Animal</i>, <i>Group</i>, Day columns (<i>0</i>, <i>2</i>, <i>4</i>, <i>7</i>, <i>10</i>...), <i>Tumor_Weight</i> (optional)</p>
+                    <p style="margin: 0;"><strong>Templates available:</strong></p>
+                    <ul style="margin: 4px 0 0 20px; padding: 0;">
+                        <li><strong><a href="templates/ViVo_basic_dataset_template.csv" download="basic_dataset_template.csv" style="color: #4facfe; text-decoration: underline; cursor: pointer;">Basic</a>:</strong> BLI data format (C1, C2, C3, T1, T2, T3...)</li>
+                        <li><strong><a href="templates/ViVo_dataset_with_weights_template.csv" download="dataset_with_weights_template.csv" style="color: #4facfe; text-decoration: underline; cursor: pointer;">With Weights</a>:</strong> BLI + Tumor_Weight column for auto-detection</li>
+                        <li><strong><a href="templates/ViVo_tumor_weights_template.csv" download="tumor_weights_template.csv" style="color: #4facfe; text-decoration: underline; cursor: pointer;">Weights Only</a>:</strong> Separate file for batch predictions</li>
+                    </ul>
                 </div>
             </div>
 
@@ -219,7 +242,6 @@
                 iqrSensitivity: 4.0,                  // Extremely permissive
                 requireMultipleFlags: true,           // Requires 2+ indicators
                 minGroupSizeForIQR: 8,               // Almost never apply IQR
-                minSignalThreshold: 1e-6,            // Very low minimum threshold
                 biologicalChangeThreshold: Math.log(20)  // 2000%/day
             },
             conservative: {
@@ -229,7 +251,6 @@
                 iqrSensitivity: 3.0,                  // Very permissive
                 requireMultipleFlags: true,           // Multiple confirmation
                 minGroupSizeForIQR: 5,               // Apply with caution
-                minSignalThreshold: 1e-5,            // Low minimum threshold
                 biologicalChangeThreshold: Math.log(10)  // 1000%/day
             },
             moderate: {
@@ -239,7 +260,6 @@
                 iqrSensitivity: 2.0,                  // Moderately permissive
                 requireMultipleFlags: false,          // Single flag sufficient
                 minGroupSizeForIQR: 4,               // Apply normally
-                minSignalThreshold: 1e-4,            // Moderate minimum threshold
                 biologicalChangeThreshold: Math.log(5)   // 500%/day
             }
         };
@@ -249,11 +269,9 @@
             IMPOSSIBLE_VALUE: { severity: 'critical', name: 'Impossible Value', color: '#dc3545' },
             EXTREME_GROWTH: { severity: 'critical', name: 'Extreme Growth', color: '#dc3545' },
             EXTREME_DECLINE: { severity: 'critical', name: 'Extreme Decline', color: '#dc3545' },
-            WEAK_SIGNAL: { severity: 'high', name: 'Weak Signal', color: '#fd7e14' },
-            INTRA_OUTLIER: { severity: 'medium', name: 'Intra-Animal Outlier', color: '#ffc107' },
+            INTRA_OUTLIER: { severity: 'high', name: 'Intra-Animal Outlier', color: '#fd7e14' },
             GROUP_OUTLIER: { severity: 'medium', name: 'Group Outlier', color: '#ffc107' },
-            INCONSISTENT_TREND: { severity: 'low', name: 'Inconsistent Trend', color: '#17a2b8' },
-            LAST_DAY_DROP: { severity: 'high', name: 'Last Day Drop', color: '#fd7e14' }
+            LAST_DAY_DROP: { severity: 'medium', name: 'Last Day Drop', color: '#ffc107' }
         };
 
         // Console override for debug mode
@@ -470,8 +488,25 @@
             // Clear all data variables
             rawData = [];
             processedData = {};
+            animalModels = {};
+            growthMatrices = {};
+            dayColumns = [];
+            globalMin = Infinity;
+            globalMax = -Infinity;
+            controlGroup = null;
+            optimizedColorRange = { min: 0, max: 0 };
+            customColorRange = null;
+            window.normalizedChartData = null;
             outlierAnalysis = null;
             currentFileName = '';
+            
+            // Reset outlier detection
+            if (outlierDetector) {
+                outlierDetector.reset();
+            }
+            useFilteredData = false;
+            usePointFiltering = false;
+            currentState = 0;
             
             // Clear all visual results from DOM
             const resultsDiv = document.getElementById('results');
@@ -518,8 +553,16 @@
 
         function handleFileSelect(e) {
             const file = e.target.files[0];
+            const fileLabel = document.getElementById('fileLabel');
+            
             if (!file) {
                 debugLog('No file selected');
+                fileLabel.innerHTML = `
+                    Drag your CSV file here or click to select
+                    <br><small style="color: #a0a0a0; margin-top: 8px;">Accepted formats: .csv, .txt</small>
+                `;
+                fileLabel.style.borderColor = 'rgba(79, 172, 254, 0.5)';
+                fileLabel.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1))';
                 return;
             }
 
@@ -536,8 +579,13 @@
             // Store filename for use in reports
             currentFileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
 
-            const fileLabel = document.getElementById('fileLabel');
-            fileLabel.textContent = `${file.name} (Loading...)`;
+            // Show loading state
+            fileLabel.innerHTML = `
+                📄 ${file.name} (Loading...)
+                <br><small style="color: #a0a0a0; margin-top: 8px;">Processing file...</small>
+            `;
+            fileLabel.style.borderColor = 'rgba(79, 172, 254, 0.8)';
+            fileLabel.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.2), rgba(0, 153, 204, 0.2))';
             fileLabel.classList.add('file-loaded');
 
             if (typeof Papa === 'undefined') {
@@ -564,12 +612,25 @@
 
                     if (rawData.length === 0) {
                         debugError('No valid data');
+                        const fileLabel = document.getElementById('fileLabel');
+                        fileLabel.innerHTML = `
+                            ${file.name} (Empty or invalid)
+                            <br><small style="color: #ff6b6b; padding-left: 5px; margin-top: 2px;">No valid data found</small>
+                        `;
+                        fileLabel.style.borderColor = 'rgba(255, 107, 107, 0.8)';
+                        fileLabel.style.background = 'linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(220, 53, 69, 0.1))';
                         showNotification('CSV file is empty or has no valid data', 'error');
-                        fileLabel.textContent = `${file.name} (No valid data)`;
                         return;
                     }
 
-                    fileLabel.textContent = `${file.name} (${rawData.length} rows)`;
+                    // Success state
+                    const fileLabel = document.getElementById('fileLabel');
+                    fileLabel.innerHTML = `
+                        ${file.name} loaded successfully
+                        <br><small style="color: #84D288; padding-left: 5px; margin-top: 2px;">${rawData.length} data rows processed</small>
+                    `;
+                    fileLabel.style.borderColor = 'rgba(132, 210, 136, 0.8)';
+                    fileLabel.style.background = 'linear-gradient(135deg, rgba(132, 210, 136, 0.1), rgba(40, 167, 69, 0.1))';
                     showNotification(`File loaded: ${rawData.length} rows processed`, 'success');
                     debugLog('Data preview:', rawData.slice(0, 3));
                     debugLog('Detected columns:', Object.keys(rawData[0]));
@@ -586,9 +647,15 @@
                     showNotification(`Outlier configuration automatically adjusted`, 'info');
                 },
                 error: function (error) {
+                    const fileLabel = document.getElementById('fileLabel');
                     debugError('Parsing error:', error);
+                    fileLabel.innerHTML = `
+                        ❌ ${file.name} (Error)
+                        <br><small style="color: #ff6b6b; margin-top: 8px;">Failed to load file</small>
+                    `;
+                    fileLabel.style.borderColor = 'rgba(255, 107, 107, 0.8)';
+                    fileLabel.style.background = 'linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(220, 53, 69, 0.1))';
                     showNotification('Error loading file: ' + error.message, 'error');
-                    fileLabel.textContent = `${file.name} (Error)`;
                 }
             });
         }
@@ -2941,36 +3008,146 @@
 
             card.innerHTML = `
                 <h2>${paramLabel} and Tumor Weight Prediction</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0;">
-                    <div>
-                        <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Animal ID:</label>
-                        <select id="predictAnimal" onchange="updatePredictionForm()" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;">
-                            <option value="">Select animal...</option>
-                            ${processedData.validAnimals.map(a =>
-                `<option value="${a.id}">${a.id} - ${a.group}</option>`
-            ).join('')}
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Day to predict:</label>
-                        <input type="number" id="predictDay" min="0" step="1" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;" />
-                        <small id="predictDayHelp" style="display: block; margin-top: 0.25rem; color: #a0a0a0; font-size: 0.8rem;">Select an animal to see valid range</small>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Last day tumor weight (g):</label>
-                        <input type="number" id="lastTumorWeight" min="0" step="0.001" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;" />
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Last weight day:</label>
-                        <input type="number" id="lastWeightDay" min="0" step="1" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;" />
-                        <small id="lastWeightDayHelp" style="display: block; margin-top: 0.25rem; color: #a0a0a0; font-size: 0.8rem;">Select an animal to see available days</small>
+                
+                <!-- Prediction Mode Selection -->
+                <div style="margin: 1rem 0; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                    <h3>Prediction Mode</h3>
+                    <div style="display: flex; gap: 1rem; margin: 0.5rem 0;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="radio" name="predictionMode" value="single" checked onchange="togglePredictionMode()" style="accent-color: #4facfe;">
+                            <span>Single Animal Prediction</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="radio" name="predictionMode" value="batch" onchange="togglePredictionMode()" style="accent-color: #4facfe;">
+                            <span>Batch Weight Prediction</span>
+                        </label>
                     </div>
                 </div>
-                <button class="btn" onclick="predictValue()" style="margin: 1rem 0;">Calculate Prediction</button>
-                <div id="predictionResults" style="margin-top: 1rem; padding: 1rem; background: rgba(0, 242, 254, 0.1); border-radius: 8px; border: 1px solid rgba(0, 242, 254, 0.3); display: none;"></div>
+
+                <!-- Single Animal Prediction -->
+                <div id="singlePredictionForm" style="display: block;">
+                    <h3>Single Animal Prediction</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Animal ID:</label>
+                            <select id="predictAnimal" onchange="updatePredictionForm()" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;">
+                                <option value="">Select animal...</option>
+                                ${processedData.validAnimals.map(a =>
+                    `<option value="${a.id}">${a.id} - ${a.group}</option>`
+                ).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Last weight day:</label>
+                            <input type="number" id="lastWeightDay" min="0" step="1" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;" />
+                            <small id="lastWeightDayHelp" style="display: block; margin-top: 0.25rem; color: #a0a0a0; font-size: 0.8rem;">Select an animal to see available days</small>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Last day tumor weight (g):</label>
+                            <input type="number" id="lastTumorWeight" min="0" step="0.001" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;" />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Day to predict:</label>
+                            <input type="number" id="predictDay" min="0" step="1" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;" />
+                            <small id="predictDayHelp" style="display: block; margin-top: 0.25rem; color: #a0a0a0; font-size: 0.8rem;">Select an animal to see valid range</small>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="predictValue()" style="margin: 1rem 0;">Calculate Prediction</button>
+                </div>
+
+                <!-- Batch Weight Prediction -->
+                <div id="batchPredictionForm" style="display: none;">
+                    <h3>Batch Tumor Weight Prediction</h3>
+                    
+                    <!-- Weight Source Selection -->
+                    <div style="margin: 1rem 0; padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                        <h4>Weight Data Source</h4>
+                        <div style="display: flex; gap: 1.5rem; margin: 0.5rem 0;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="weightSource" value="auto" checked onchange="toggleWeightSource()" style="accent-color: #4facfe;">
+                                <span>Auto-detect from dataset</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="weightSource" value="manual" onchange="toggleWeightSource()" style="accent-color: #4facfe;">
+                                <span>Upload separate CSV file</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Auto-detection Status -->
+                    <div id="autoWeightStatus" style="margin: 1rem 0; display: block;">
+                        <div id="autoWeightMessage" style="padding: 1rem; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border-left: 4px solid #4facfe;">
+                            <span style="color: #a0a0a0;">🔍 Checking for Tumor_Weight column...</span>
+                        </div>
+                    </div>
+
+                    <!-- Manual Upload -->
+                    <div id="manualWeightUpload" style="margin: 1rem 0; display: none;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: #4facfe; font-weight: 600;">Load Tumor Weight CSV:</label>
+                        <div class="file-input-wrapper" style="position: relative; display: inline-block; width: 100%;">
+                            <input type="file" id="weightsFileInput" accept=".csv,.txt" style="position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;" />
+                            <div class="file-input-label" id="weightFileLabel" style="
+                                display: flex; 
+                                align-items: center; 
+                                justify-content: center; 
+                                padding: 1rem; 
+                                background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1)); 
+                                border: 2px dashed rgba(79, 172, 254, 0.5); 
+                                border-radius: 12px; 
+                                color: #e0e0e0; 
+                                cursor: pointer; 
+                                transition: all 0.3s ease;
+                                min-height: 60px;
+                                text-align: center;
+                                font-size: 0.95rem;
+                            ">
+                                Drag your tumor weight CSV here or click to select
+                                <br><small style="color: #a0a0a0; margin-top: 2px; padding-left: 5px;">Accepted formats: .csv, .txt</small>
+                            </div>
+                        </div>
+                        <p style="margin: 8px 0 0 0; color: #a0a0a0; font-size: 0.9rem;">
+                            <strong>Required columns:</strong> Animal_ID, Day, Tumor_Weight
+                            <br><strong>Example:</strong> C1, 28, 1.245 (animal C1, day 28, weight 1.245g)
+                        </p>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Target prediction day:</label>
+                            <input type="number" id="batchPredictDay" min="0" step="1" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;" />
+                            <small style="display: block; margin-top: 0.25rem; color: #a0a0a0; font-size: 0.8rem;">Day to predict weights for all animals</small>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; color: #4facfe;">Statistical comparison:</label>
+                            <select id="batchComparison" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;">
+                                <option value="none">No comparison</option>
+                                <option value="mann-whitney" selected>Mann-Whitney U test</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="predictBatchWeights()" style="margin: 1rem 0;" disabled id="batchPredictBtn">Calculate Batch Predictions</button>
+                </div>
+
+                <div id="predictionResults" style="margin-top: 1rem; background: transparent; border-radius: 8px; display: none;"></div>
             `;
 
             document.getElementById('results').appendChild(card);
+            
+            // Auto-select Batch Weight Prediction if Tumor_Weight column exists
+            if (rawData && rawData.length > 0) {
+                const firstRow = rawData[0];
+                const hasTumorWeight = firstRow && firstRow.hasOwnProperty('Tumor_Weight');
+                
+                if (hasTumorWeight) {
+                    // Select batch prediction mode
+                    const batchRadio = document.querySelector('input[name="predictionMode"][value="batch"]');
+                    if (batchRadio) {
+                        batchRadio.checked = true;
+                        // Trigger the mode change
+                        togglePredictionMode();
+                    }
+                }
+            }
+            
             showNotification('Prediction form opened', 'info');
         }
 
@@ -2984,7 +3161,7 @@
 
                 document.getElementById('predictDay').value = maxDay + 7;
                 document.getElementById('lastWeightDay').value = maxDay;
-                document.getElementById('lastTumorWeight').placeholder = `Ej: ${(lastValue * 0.0001).toFixed(3)}`;
+                document.getElementById('lastTumorWeight').placeholder = `Ej: 1.0`;
                 
                 // Update help text
                 document.getElementById('predictDayHelp').textContent = `Any day can be predicted (data available: ${Math.min(...animal.timePoints)}-${maxDay})`;
@@ -3034,25 +3211,60 @@
                 const predictedWeight = lastWeight * weightGrowthRatio;
 
                 weightPrediction = `
-                    <p><strong>Predicted tumor weight (day ${day}):</strong> ${predictedWeight.toFixed(3)} g</p>
+                    <p><strong>Predicted tumor weight (day ${day}): </strong><span style="padding-left: 4px; padding-right: 4px; background-color: white; color: black; font-weight: bold; font-size: 1.1rem;">${predictedWeight.toFixed(3)} g</span></p>
                     <p><strong>Weight growth ratio:</strong> ${weightGrowthRatio.toFixed(2)}x</p>
                     `;
+            }
+
+            // Check if prediction day is within experimental range for interpolation validation
+            let interpolationValidation = '';
+            const minDay = Math.min(...animal.timePoints);
+            const maxDay = Math.max(...animal.timePoints);
+            
+            if (day >= minDay && day <= maxDay) {
+                // Interpolation - find actual experimental value for validation
+                const actualIndex = animal.timePoints.indexOf(day);
+                if (actualIndex !== -1) {
+                    const actualValue = animal.measurements[actualIndex];
+                    const percentError = Math.abs((predictedMeasurement - actualValue) / actualValue * 100);
+                    interpolationValidation = `
+                        <div style="background: rgba(165, 94, 234, 0.1); padding: 15px; border-radius: 8px; margin: 10 0px; border-left: 4px solid #a55eea;">
+                            <h4 style="color: white; margin: 0 0 8px 0;">Interpolation Validation</h4>
+                            <p><strong>Experimental value (day ${day}):</strong> ${dataType === 'bli' ? actualValue.toExponential(3) : actualValue.toFixed(2)}${unitLabel}</p>
+                            <p><strong>Prediction error:</strong> <span style="font-weight: bold; font-size: 1.1rem; color: ${percentError < 10 ? '#84D288' : percentError < 20 ? '#FFAA55' : '#E68989'};">${percentError.toFixed(1)}%</span></p>
+                        </div>
+                    `;
+                }
             }
 
             const resultsDiv = document.getElementById('predictionResults');
             resultsDiv.style.display = 'block';
             resultsDiv.innerHTML = `
                 <h3>Prediction Results</h3>
-                <p><strong>Animal:</strong> ${animal.id} (${animal.group})</p>
-                <p><strong>Model:</strong> y = ${
-                    animal.model.a > 10000
-                        ? animal.model.a.toExponential(2)
-                        : animal.model.a.toFixed(2)
-                    } × e^(${animal.model.r.toFixed(4)} × t)</p>
-                <p><strong>R²:</strong> ${animal.model.r2.toFixed(2)}</p>
-                <p><strong>${paramLabel} (day ${day}):</strong> ${predictedValue}${unitLabel}</p>
-                <p><strong>95% confidence interval:</strong> ${formatNumber(predictedMeasurement * 0.85)} - ${formatNumber(predictedMeasurement * 1.15)}${unitLabel}</p>
-                ${weightPrediction}
+                <div style="background: transparent; padding: 0px 0px 10px 15px; border-radius: 8px; margin: 10px 0;">
+                    <p><strong>Animal:</strong> ${animal.id} (${animal.group})</p>
+                    <p><strong>Model:</strong> y = ${
+                        animal.model.a > 10000
+                            ? animal.model.a.toExponential(2)
+                            : animal.model.a.toFixed(2)
+                        } × e^(${animal.model.r.toFixed(4)} × t)</p>
+                    <p><strong>R²:</strong> ${animal.model.r2.toFixed(2)}</p>
+                </div>
+                
+                <div style="background: rgba(79, 172, 254, 0.1); padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1976d2;">
+                    <h4 style="color: white; margin: 0 0 8px 0;">${paramLabel}</h4>
+                    <p style="font-size: 1.0em;"><strong>Day ${day}:</strong> <span style="padding-left: 4px; padding-right: 4px; background-color: white; color: black; font-weight: bold; font-size: 1.1rem;">${predictedValue}${unitLabel}</span></p>
+                    <p><strong>95% confidence interval:</strong> ${formatNumber(predictedMeasurement * 0.85)} - ${formatNumber(predictedMeasurement * 1.15)}${unitLabel}</p>
+                </div>
+                
+                ${interpolationValidation}
+                
+                ${weightPrediction ? `
+                    <div style="background: rgba(76, 175, 80, 0.1); padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #f57c00;">
+                        <h4 style="color: white; margin: 0 0 8px 0;">Tumor Weight Prediction</h4>
+                        ${weightPrediction}
+                    </div>
+                ` : ''}
                 `;
 
             showNotification('Prediction calculated correctly', 'success');
@@ -3060,6 +3272,658 @@
 
         function formatNumber(x) {
             return x > 10000 ? x.toExponential(2) : x.toFixed(2);
+        }
+
+        // Global variables for batch prediction
+        let tumorWeightsData = null;
+        let batchPredictionResults = null;
+
+        function togglePredictionMode() {
+            const mode = document.querySelector('input[name="predictionMode"]:checked').value;
+            const singleForm = document.getElementById('singlePredictionForm');
+            const batchForm = document.getElementById('batchPredictionForm');
+            
+            if (mode === 'single') {
+                singleForm.style.display = 'block';
+                batchForm.style.display = 'none';
+            } else {
+                singleForm.style.display = 'none';
+                batchForm.style.display = 'block';
+                setupWeightFileInput();
+                // Initialize weight source selection and check for auto-detection
+                toggleWeightSource();
+            }
+        }
+
+        function toggleWeightSource() {
+            const weightSource = document.querySelector('input[name="weightSource"]:checked').value;
+            const autoStatus = document.getElementById('autoWeightStatus');
+            const manualUpload = document.getElementById('manualWeightUpload');
+            const batchPredictBtn = document.getElementById('batchPredictBtn');
+            
+            if (weightSource === 'auto') {
+                autoStatus.style.display = 'block';
+                manualUpload.style.display = 'none';
+                checkForTumorWeightColumn();
+            } else {
+                autoStatus.style.display = 'none';
+                manualUpload.style.display = 'block';
+                // Reset auto-detected data
+                tumorWeightsData = null;
+                batchPredictBtn.disabled = true;
+            }
+        }
+        
+        function checkForTumorWeightColumn() {
+            const autoWeightMessage = document.getElementById('autoWeightMessage');
+            const batchPredictBtn = document.getElementById('batchPredictBtn');
+            
+            if (!rawData || rawData.length === 0) {
+                autoWeightMessage.innerHTML = `
+                    <span style="color: #ff6b6b;">❌ No dataset loaded. Please load your main CSV file first.</span>
+                `;
+                batchPredictBtn.disabled = true;
+                return;
+            }
+            
+            // Check if Tumor_Weight column exists
+            const firstRow = rawData[0];
+            const hasTumorWeight = firstRow && firstRow.hasOwnProperty('Tumor_Weight');
+            
+            if (hasTumorWeight) {
+                // Extract tumor weight data from the original dataset
+                extractTumorWeightsFromDataset();
+            } else {
+                autoWeightMessage.innerHTML = `
+                    <span style="color: #FFAA55;">No 'Tumor_Weight' column found in your dataset.</span>
+                    <br><small style="color: #a0a0a0; margin-top: 4px;">Please use the "Upload separate CSV file" option instead.</small>
+                `;
+                batchPredictBtn.disabled = true;
+            }
+        }
+        
+        function extractTumorWeightsFromDataset() {
+            const autoWeightMessage = document.getElementById('autoWeightMessage');
+            const batchPredictBtn = document.getElementById('batchPredictBtn');
+            
+            try {
+                tumorWeightsData = [];
+                
+                // Process each row to extract tumor weights
+                rawData.forEach(row => {
+                    const animalId = row.Animal || row.ID || `Animal_${rawData.indexOf(row) + 1}`;
+                    const tumorWeight = parseFloat(row.Tumor_Weight);
+                    
+                    if (!isNaN(tumorWeight) && tumorWeight > 0) {
+                        // Find the last day with V/BLI data for this animal
+                        const dayCols = Object.keys(row)
+                            .filter(k => !isNaN(parseFloat(k)))
+                            .map(Number)
+                            .sort((a, b) => a - b);
+                        
+                        // Find the last day with valid measurement data
+                        let lastDayWithData = null;
+                        for (let i = dayCols.length - 1; i >= 0; i--) {
+                            const dayValue = parseFloat(row[dayCols[i]]);
+                            if (!isNaN(dayValue) && dayValue > 0) {
+                                lastDayWithData = dayCols[i];
+                                break;
+                            }
+                        }
+                        
+                        if (lastDayWithData !== null) {
+                            tumorWeightsData.push({
+                                animalId: animalId,
+                                day: lastDayWithData,
+                                weight: tumorWeight
+                            });
+                        }
+                    }
+                });
+                
+                if (tumorWeightsData.length > 0) {
+                    autoWeightMessage.innerHTML = `
+                        <span style="color: #84D288;">Found Tumor_Weight column with ${tumorWeightsData.length} valid measurements.</span>
+                        <br><small style="color: #a0a0a0; margin-top: 4px;">Using tumor weights corresponding to last measurement day for each animal.</small>
+                    `;
+                    batchPredictBtn.disabled = false;
+                } else {
+                    autoWeightMessage.innerHTML = `
+                        <span style="color: #FFAA55;">Tumor_Weight column found but no valid weight data.</span>
+                        <br><small style="color: #a0a0a0; margin-top: 4px;">Please check your data or use the upload option.</small>
+                    `;
+                    batchPredictBtn.disabled = true;
+                }
+                
+            } catch (error) {
+                autoWeightMessage.innerHTML = `
+                    <span style="color: #ff6b6b;">Error processing Tumor_Weight data: ${error.message}</span>
+                `;
+                batchPredictBtn.disabled = true;
+            }
+        }
+
+        function setupWeightFileInput() {
+            const weightsFileInput = document.getElementById('weightsFileInput');
+            const weightFileLabel = document.getElementById('weightFileLabel');
+            
+            weightsFileInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (!file) {
+                    weightFileLabel.innerHTML = `
+                        Drag your tumor weight CSV here or click to select
+                        <br><small style="color: #a0a0a0; padding-left: 5px;">Accepted formats: .csv, .txt</small>
+                    `;
+                    return;
+                }
+                
+                weightFileLabel.innerHTML = `
+                    ${file.name} (Loading...)
+                    <br><small style="color: #a0a0a0; margin-top: 5px;">Processing file...</small>
+                `;
+                weightFileLabel.style.borderColor = 'rgba(79, 172, 254, 0.8)';
+                weightFileLabel.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.2), rgba(0, 153, 204, 0.2))';
+                
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const csvData = e.target.result;
+                            const parsed = Papa.parse(csvData, { header: true, skipEmptyLines: true });
+                            
+                            // Validate required columns
+                            const requiredColumns = ['Animal_ID', 'Day', 'Tumor_Weight'];
+                            const hasRequiredColumns = requiredColumns.every(col => 
+                                parsed.data.length > 0 && parsed.data[0].hasOwnProperty(col)
+                            );
+                            
+                            if (!hasRequiredColumns) {
+                                weightFileLabel.innerHTML = `
+                                    ❌ Missing columns: ${requiredColumns.filter(col => !parsed.data[0].hasOwnProperty(col)).join(', ')}
+                                    <br><small style="color: #ff6b6b;">Required: Animal_ID, Day, Tumor_Weight</small>
+                                `;
+                                weightFileLabel.style.borderColor = 'rgba(255, 107, 107, 0.8)';
+                                weightFileLabel.style.background = 'linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(220, 53, 69, 0.1))';
+                                showNotification(`CSV must contain columns: ${requiredColumns.join(', ')}`, 'error');
+                                return;
+                            }
+                            
+                            // Process and validate data
+                            tumorWeightsData = parsed.data.map(row => ({
+                                animalId: row.Animal_ID,
+                                day: parseFloat(row.Day),
+                                weight: parseFloat(row.Tumor_Weight)
+                            })).filter(row => 
+                                row.animalId && !isNaN(row.day) && !isNaN(row.weight)
+                            );
+                            
+                            if (tumorWeightsData.length === 0) {
+                                weightFileLabel.innerHTML = `
+                                    No valid weight data found
+                                    <br><small style="color: #ff6b6b;">Check data format</small>
+                                `;
+                                weightFileLabel.style.borderColor = 'rgba(255, 107, 107, 0.8)';
+                                weightFileLabel.style.background = 'linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(220, 53, 69, 0.1))';
+                                showNotification('No valid weight data found in CSV', 'error');
+                                return;
+                            }
+                            
+                            // Success
+                            weightFileLabel.innerHTML = `
+                                ${file.name} loaded successfully
+                                <br><small style="color: #84D288; padding-left: 5px;">${tumorWeightsData.length} weight measurements</small>
+                            `;
+                            weightFileLabel.style.borderColor = 'rgba(132, 210, 136, 0.8)';
+                            weightFileLabel.style.background = 'linear-gradient(135deg, rgba(132, 210, 136, 0.1), rgba(40, 167, 69, 0.1))';
+                            
+                            // Enable batch prediction button
+                            document.getElementById('batchPredictBtn').disabled = false;
+                            showNotification(`Loaded ${tumorWeightsData.length} weight measurements`, 'success');
+                            
+                        } catch (error) {
+                            weightFileLabel.innerHTML = `
+                                Error parsing CSV file
+                                <br><small style="color: #ff6b6b;">Please check file format</small>
+                            `;
+                            weightFileLabel.style.borderColor = 'rgba(255, 107, 107, 0.8)';
+                            weightFileLabel.style.background = 'linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(220, 53, 69, 0.1))';
+                            showNotification('Error parsing CSV file', 'error');
+                            console.error('CSV parsing error:', error);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            
+            // Drag and drop functionality
+            weightFileLabel.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.style.borderColor = 'rgba(79, 172, 254, 1)';
+                this.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.3), rgba(0, 153, 204, 0.3))';
+            });
+            
+            weightFileLabel.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.style.borderColor = 'rgba(79, 172, 254, 0.5)';
+                this.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1))';
+            });
+            
+            weightFileLabel.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.borderColor = 'rgba(79, 172, 254, 0.5)';
+                this.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1))';
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    weightsFileInput.files = files;
+                    weightsFileInput.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+
+        function predictBatchWeights() {
+            if (!tumorWeightsData) {
+                showNotification('Please load tumor weights CSV first', 'warning');
+                return;
+            }
+            
+            const targetDay = parseFloat(document.getElementById('batchPredictDay').value);
+            if (isNaN(targetDay)) {
+                showNotification('Please enter a valid target day', 'warning');
+                return;
+            }
+            
+            const comparison = document.getElementById('batchComparison').value;
+            
+            // Calculate predictions for all animals
+            const predictions = [];
+            const experimentalWeights = [];
+            
+            Object.values(animalModels).forEach(animal => {
+                // Find weight data for this animal
+                const animalWeightData = tumorWeightsData.filter(w => w.animalId === animal.id);
+                
+                if (animalWeightData.length === 0) {
+                    console.warn(`No weight data found for animal ${animal.id}`);
+                    return;
+                }
+                
+                // Sort by day and get the last available weight
+                animalWeightData.sort((a, b) => a.day - b.day);
+                const lastWeight = animalWeightData[animalWeightData.length - 1];
+                
+                // Calculate predicted volume/BLI for target day
+                const predictedMeasurement = animal.model.a * Math.exp(animal.model.r * targetDay);
+                const lastMeasurement = animal.model.a * Math.exp(animal.model.r * lastWeight.day);
+                
+                // Calculate predicted weight
+                const weightGrowthRatio = predictedMeasurement / lastMeasurement;
+                const predictedWeight = lastWeight.weight * weightGrowthRatio;
+                
+                // Check if experimental weight exists for target day, or get the closest available
+                let experimentalWeight = animalWeightData.find(w => w.day === targetDay);
+                if (!experimentalWeight && animalWeightData.length > 0) {
+                    // If no exact match, get the closest day to target day
+                    experimentalWeight = animalWeightData.reduce((closest, current) => {
+                        return Math.abs(current.day - targetDay) < Math.abs(closest.day - targetDay) ? current : closest;
+                    });
+                }
+                
+                const predictionData = {
+                    animalId: animal.id,
+                    group: animal.group,
+                    targetDay: targetDay,
+                    predictedWeight: predictedWeight,
+                    experimentalWeight: experimentalWeight ? experimentalWeight.weight : null,
+                    lastKnownWeight: lastWeight.weight,
+                    lastKnownDay: lastWeight.day,
+                    weightGrowthRatio: weightGrowthRatio,
+                    r2: animal.model.r2
+                };
+                
+                predictions.push(predictionData);
+                
+                if (experimentalWeight) {
+                    // Calculate prediction error EXACTLY like Single Animal Prediction
+                    const predictedMeasurementForTargetDay = animal.model.a * Math.exp(animal.model.r * targetDay);
+                    
+                    // Check if target day is within experimental range (same logic as Single Animal)
+                    const minDay = Math.min(...animal.timePoints);
+                    const maxDay = Math.max(...animal.timePoints);
+                    
+                    let relativeError = null; // null when no validation possible
+                    let actualMeasurementTargetDay = null;
+                    
+                    if (targetDay >= minDay && targetDay <= maxDay) {
+                        // Find actual experimental value for validation (same logic as Single Animal)
+                        const actualIndex = animal.timePoints.indexOf(targetDay);
+                        if (actualIndex !== -1) {
+                            actualMeasurementTargetDay = animal.measurements[actualIndex];
+                            relativeError = Math.abs((predictedMeasurementForTargetDay - actualMeasurementTargetDay) / actualMeasurementTargetDay * 100);
+                        }
+                    }
+                    
+                    experimentalWeights.push({
+                        ...predictionData,
+                        experimentalWeight: experimentalWeight.weight,
+                        sacrificeDay: experimentalWeight.day,
+                        predictionError: relativeError,
+                        actualMeasurement: actualMeasurementTargetDay,
+                        predictedMeasurement: predictedMeasurementForTargetDay
+                    });
+                }
+            });
+            
+            if (predictions.length === 0) {
+                showNotification('No predictions could be calculated', 'warning');
+                return;
+            }
+            
+            // Store results globally
+            batchPredictionResults = {
+                predictions: predictions,
+                experimentalWeights: experimentalWeights,
+                targetDay: targetDay,
+                comparison: comparison
+            };
+            
+            // Perform statistical comparison if requested
+            let comparisonResults = null;
+            if (comparison === 'mann-whitney') {
+                comparisonResults = performMannWhitneyComparison(predictions);
+            }
+            
+            // Display results
+            displayBatchPredictionResults(predictions, experimentalWeights, comparisonResults);
+            
+            showNotification(`Batch predictions calculated for ${predictions.length} animals`, 'success');
+        }
+
+        function performMannWhitneyComparison(predictions) {
+            // Group predictions by experimental group
+            const groups = {};
+            predictions.forEach(pred => {
+                if (!groups[pred.group]) {
+                    groups[pred.group] = [];
+                }
+                groups[pred.group].push(pred.predictedWeight);
+            });
+            
+            const groupNames = Object.keys(groups);
+            const comparisons = [];
+            
+            // Perform pairwise Mann-Whitney U tests
+            for (let i = 0; i < groupNames.length; i++) {
+                for (let j = i + 1; j < groupNames.length; j++) {
+                    const group1 = groupNames[i];
+                    const group2 = groupNames[j];
+                    const values1 = groups[group1];
+                    const values2 = groups[group2];
+                    
+                    if (values1.length > 0 && values2.length > 0) {
+                        const mannWhitneyResult = mannWhitneyUTest(values1, values2);
+                        const cohensD = calculateCohensD(values1, values2);
+                        
+                        comparisons.push({
+                            group1: group1,
+                            group2: group2,
+                            n1: values1.length,
+                            n2: values2.length,
+                            median1: calculateMedian(values1),
+                            median2: calculateMedian(values2),
+                            u: mannWhitneyResult.U,
+                            pValue: mannWhitneyResult.p,
+                            significant: mannWhitneyResult.p < 0.05,
+                            cohensD: cohensD,
+                            effectSize: getEffectSizeLabel(cohensD)
+                        });
+                    }
+                }
+            }
+            
+            return {
+                groups: groups,
+                comparisons: comparisons
+            };
+        }
+
+        function displayBatchPredictionResults(predictions, experimentalWeights, comparisonResults) {
+            const resultsDiv = document.getElementById('predictionResults');
+            resultsDiv.style.display = 'block';
+            
+            // Summary statistics
+            const groupStats = {};
+            predictions.forEach(pred => {
+                if (!groupStats[pred.group]) {
+                    groupStats[pred.group] = [];
+                }
+                groupStats[pred.group].push(pred.predictedWeight);
+            });
+            
+            let summaryHtml = `
+                <h3>Batch Prediction Results (Day ${predictions[0].targetDay})</h3>
+                <div style="background: transparent; border-radius: 8px; margin: 10px 0;">
+                    <h4>Group Summary</h4>
+                    ${Object.entries(groupStats).map(([group, weights]) => `
+                        <p style="padding-left: 15px;"><strong>${group}:</strong> n=${weights.length}, median=${calculateMedian(weights).toFixed(3)}g, range=${Math.min(...weights).toFixed(3)}-${Math.max(...weights).toFixed(3)}g</p>
+                    `).join('')}
+                </div>
+            `;
+            
+            // Experimental validation if available
+            if (experimentalWeights.length > 0) {
+                // Filter out animals where prediction error couldn't be calculated (null values)
+                const validErrors = experimentalWeights.filter(w => w.predictionError !== null);
+                
+                let errorDisplay = '';
+                let errorColor = '#666';
+                
+                if (validErrors.length > 0) {
+                    const avgError = validErrors.reduce((sum, w) => sum + w.predictionError, 0) / validErrors.length;
+                    errorColor = avgError < 10 ? '#84D288' : avgError < 20 ? '#FFAA55' : '#E68989';
+                    errorDisplay = `<span style="font-weight: bold; color: ${errorColor};">${avgError.toFixed(1)}%</span>`;
+                } else {
+                    errorDisplay = `<span style="color: ${errorColor};">Cannot be calculated (no experimental measurements for target days)</span>`;
+                }
+                
+                summaryHtml += `
+                    <div style="background: rgba(165, 94, 234, 0.1); padding: 15px; border-radius: 8px; margin: 10px 0px; border-left: 4px solid #a55eea;">
+                        <h4 style="margin-bottom: 15px;">Prediction Validation</h4>
+                        <p><strong>Animals with experimental weights:</strong> ${experimentalWeights.length}</p>
+                        <p><strong>Animals with calculable errors:</strong> ${validErrors.length}</p>
+                        <p><strong>Average prediction error:</strong> ${errorDisplay}</p>
+                    </div>
+                `;
+            }
+            
+            // Statistical comparison results
+            if (comparisonResults && comparisonResults.comparisons.length > 0) {
+                summaryHtml += `
+                    <div style="background: transparent; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <h4>Statistical Comparison (Mann-Whitney U Test)</h4>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+                                <thead>
+                                    <tr style="background: rgba(0,0,0,0.1);">
+                                        <th style="padding: 8px;text-align: left;">Comparison</th>
+                                        <th style="padding: 8px; text-align: center;">n₁</th>
+                                        <th style="padding: 8px; text-align: center;">n₂</th>
+                                        <th style="padding: 8px; text-align: center;">Median₁ (g)</th>
+                                        <th style="padding: 8px; text-align: center;">Median₂ (g)</th>
+                                        <th style="padding: 8px; text-align: center;">U</th>
+                                        <th style="padding: 8px; text-align: center;">p-value</th>
+                                        <th style="padding: 8px; text-align: center;">Cohen's d</th>
+                                        <th style="padding: 8px; text-align: center;">Significant</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${comparisonResults.comparisons.map(comp => `
+                                        <tr style="background: ${comp.significant ? 'rgba(244, 67, 54, 0.1)' : 'transparent'};">
+                                            <td style="padding: 8px; font-weight: bold; text-align: left;">${comp.group1} vs ${comp.group2}</td>
+                                            <td style="padding: 8px; text-align: center;">${comp.n1}</td>
+                                            <td style="padding: 8px; text-align: center;">${comp.n2}</td>
+                                            <td style="padding: 8px; text-align: center;">${comp.median1.toFixed(3)}</td>
+                                            <td style="padding: 8px; text-align: center;">${comp.median2.toFixed(3)}</td>
+                                            <td style="padding: 8px; text-align: center;">${comp.u.toFixed(0)}</td>
+                                            <td style="padding: 8px; text-align: center;">${comp.significant ? `<span style="color: #00f2fe; font-weight: bold;">${comp.pValue.toFixed(4)} (${getAsteriskNotation(comp.pValue)})</span>` : `${comp.pValue.toFixed(4)} (${getAsteriskNotation(comp.pValue)})`}</td>
+                                            <td style="padding: 8px; text-align: center;">
+                                                ${comp.effectSize}<br>
+                                                <small style="color: #a0a0a0;">(d=${Math.abs(comp.cohensD).toFixed(3)})</small>
+                                            </td>
+                                            <td style="padding: 8px; text-align: center;">
+                                                ${comp.significant ? '<span style="color: #00f2fe; font-weight: bold;">Significant</span>' : '<span style="color: #a0a0a0; font-weight: bold;">Not significant</span>'}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="margin-top: 10px; font-size: 0.9em; color: #666;"><strong>*</strong> p < 0.05 (statistically significant)</p>
+                    </div>
+                `;
+            }
+            
+            // Individual predictions table
+            summaryHtml += `
+                <div style="background: transparent; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <h4>Individual Predictions</h4>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: rgba(0,0,0,0.1);">
+                                    <th style="padding: 8px; text-align: left;">Animal_ID</th>
+                                    <th style="padding: 8px;">Group</th>
+                                    <th style="padding: 8px;">Predicted Weight (g)<br><small>Day ${predictions[0].targetDay}</small></th>
+                                    <th style="padding: 8px;">Experimental Weight (g)<br><small>Sacrifice Day</small></th>
+                                    <th style="padding: 8px;">Error (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${predictions.map(pred => {
+                                    const exp = experimentalWeights.find(e => e.animalId === pred.animalId);
+                                    
+                                    // Apply same color pattern as Single Animal Prediction
+                                    let errorDisplay = 'N/A';
+                                    let errorColor = '#666';
+                                    
+                                    if (exp && exp.predictionError !== null) {
+                                        const percentError = exp.predictionError;
+                                        errorColor = percentError < 10 ? '#84D288' : percentError < 20 ? '#FFAA55' : '#E68989';
+                                        errorDisplay = `<span style="font-weight: bold; color: ${errorColor};">${percentError.toFixed(1)}%</span>`;
+                                    }
+                                    
+                                    return `
+                                        <tr>
+                                            <td style="padding: 8px; text-align: left;">${pred.animalId}</td>
+                                            <td style="padding: 8px;">${pred.group}</td>
+                                            <td style="padding: 8px;">${pred.predictedWeight.toFixed(3)}<br><small>Day ${pred.targetDay}</small></td>
+                                            <td style="padding: 8px;">${exp ? exp.experimentalWeight.toFixed(3) + '<br><small>Day ' + exp.sacrificeDay + '</small>' : 'N/A'}</td>
+                                            <td style="padding: 8px;">${errorDisplay}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            // Export button
+            summaryHtml += `
+                <div style="margin: 15px 0;">
+                    <button class="btn secondary" onclick="exportBatchPredictions()" style="margin-right: 10px;">Export CSV</button>
+                    <button class="btn tertiary" onclick="addBatchPredictionToReport()">Add to Report</button>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = summaryHtml;
+        }
+
+        function exportBatchPredictions() {
+            try {
+                if (!batchPredictionResults) {
+                    showNotification('No batch prediction results to export', 'warning');
+                    return;
+                }
+                
+                // Validate required properties
+                if (!batchPredictionResults.predictions || !Array.isArray(batchPredictionResults.predictions)) {
+                    showNotification('Invalid prediction data structure', 'error');
+                    return;
+                }
+                
+                if (batchPredictionResults.predictions.length === 0) {
+                    showNotification('No predictions available to export', 'warning');
+                    return;
+                }
+                
+                const csvData = [
+                    ['Animal_ID', 'Group', 'Target_Day', 'Predicted_Tumor_Weight', 'Experimental_Tumor_Weight', 'Prediction_Error_percent', 'R2']
+                ];
+                
+                batchPredictionResults.predictions.forEach(pred => {
+                    try {
+                        // Validate prediction object
+                        if (!pred || typeof pred !== 'object') {
+                            console.warn('Invalid prediction object:', pred);
+                            return;
+                        }
+                        
+                        const exp = batchPredictionResults.experimentalWeights ? 
+                            batchPredictionResults.experimentalWeights.find(e => e && e.animalId === pred.animalId) : null;
+                        
+                        csvData.push([
+                            pred.animalId || '',
+                            pred.group || '',
+                            pred.targetDay || '',
+                            (pred.predictedWeight && typeof pred.predictedWeight === 'number') ? pred.predictedWeight.toFixed(3) : '',
+                            (exp && exp.experimentalWeight && typeof exp.experimentalWeight === 'number') ? exp.experimentalWeight.toFixed(3) : '',
+                            (exp && exp.predictionError && typeof exp.predictionError === 'number') ? exp.predictionError.toFixed(1) : '',
+                            (pred.r2 && typeof pred.r2 === 'number') ? pred.r2.toFixed(3) : ''
+                        ]);
+                    } catch (predError) {
+                        console.warn('Error processing prediction:', pred, predError);
+                    }
+                });
+                
+                if (csvData.length <= 1) {
+                    showNotification('No valid prediction data to export', 'warning');
+                    return;
+                }
+                
+                const csvContent = csvData.map(row => row.join(',')).join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `batch_weight_predictions_day${batchPredictionResults.targetDay || 'unknown'}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showNotification('Batch predictions exported successfully', 'success');
+            } catch (error) {
+                console.error('Error exporting batch predictions:', error);
+                showNotification('Failed to export batch predictions: ' + error.message, 'error');
+            }
+        }
+
+        function addBatchPredictionToReport() {
+            if (!batchPredictionResults) {
+                showNotification('No batch prediction results to add', 'warning');
+                return;
+            }
+            
+            // Mark batch predictions for inclusion in report
+            window.batchPredictionForReport = batchPredictionResults;
+            showNotification('Batch predictions will be included in next report generation', 'success');
+        }
+
+        function calculateMedian(arr) {
+            const sorted = [...arr].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
         }
 
         async function captureChart(chartId) {
@@ -3366,19 +4230,317 @@
 
         // Función para capturar predicciones existentes
         function capturePredictions() {
-            const predictionResults = document.getElementById('predictionResults');
-            if (!predictionResults || predictionResults.style.display === 'none') {
-                return '';
-            }
+            try {
+                const predictionResults = document.getElementById('predictionResults');
+                let hasPredictions = predictionResults && predictionResults.style.display !== 'none';
+                let hasBatchPredictions = window.batchPredictionForReport;
+                
+                if (!hasPredictions && !hasBatchPredictions) {
+                    return '';
+                }
 
-            // Capturar contenido y adaptarlo para el informe
-            const content = predictionResults.innerHTML;
-            return `
-                <h2>Predictions Made</h2>
-                <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #2196f3;">
+                let content = '';
+                
+                // Prioritize batch predictions over individual predictions to avoid duplication
+                // If we have batch predictions, use them exclusively as they contain more comprehensive data
+                if (hasBatchPredictions) {
+                    try {
+                        content += generateBatchPredictionReportHTML(window.batchPredictionForReport);
+                    } catch (error) {
+                        console.warn('Error capturing batch predictions:', error);
+                        content += `
+                            <h3>Batch Tumor Weight Predictions</h3>
+                            <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 20px;">
+                                <p style="color: #d32f2f;">Error loading batch predictions: ${error.message}</p>
+                            </div>
+                        `;
+                    }
+                } else if (hasPredictions) {
+                    // Only capture individual predictions if no batch predictions exist
+                    try {
+                        // Check if the DOM content contains batch prediction data (to avoid duplication)
+                        const domContent = predictionResults.innerHTML || '';
+                        const isBatchData = domContent.includes('Statistical Comparison') || domContent.includes('Group Statistics');
+                        
+                        if (isBatchData) {
+                            // If DOM contains batch data but we don't have window.batchPredictionForReport,
+                            // create a simplified version to avoid showing raw HTML
+                            content += `
+                                <h3>Batch Tumor Weight Predictions</h3>
+                                <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #f57c00; margin-bottom: 20px;">
+                                    <p><strong>Note:</strong> Batch prediction results are available in the analysis panel above.</p>
+                                    <p>For detailed statistics and comparisons, please refer to the main analysis section.</p>
+                                </div>
+                            `;
+                        } else {
+                            // True individual predictions
+                            content += `
+                                <h3>Individual Animal Predictions</h3>
+                                <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                                    ${domContent || 'No individual predictions available'}
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        console.warn('Error capturing individual predictions:', error);
+                        content += `
+                            <h3>Individual Animal Predictions</h3>
+                            <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 20px;">
+                                <p style="color: #d32f2f;">Error loading individual predictions</p>
+                            </div>
+                        `;
+                    }
+                }
+                
+                return `
+                    <h2>Predictions Made</h2>
                     ${content}
-                </div>
-            `;
+                `;
+            } catch (error) {
+                console.error('Error in capturePredictions:', error);
+                return `
+                    <h2>Predictions Made</h2>
+                    <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 20px;">
+                        <p style="color: #d32f2f;">Error loading predictions data</p>
+                    </div>
+                `;
+            }
+        }
+
+        function generateBatchPredictionReportHTML(batchResults) {
+            try {
+                // Validate input parameters
+                if (!batchResults || typeof batchResults !== 'object') {
+                    throw new Error('Invalid batch results object');
+                }
+                
+                const predictions = batchResults.predictions;
+                const experimentalWeights = batchResults.experimentalWeights || [];
+                const targetDay = batchResults.targetDay;
+                
+                // Validate predictions array
+                if (!predictions || !Array.isArray(predictions)) {
+                    throw new Error('Invalid predictions array');
+                }
+                
+                if (predictions.length === 0) {
+                    return `
+                        <h3>Batch Tumor Weight Predictions</h3>
+                        <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #f57c00; margin-bottom: 20px;">
+                            <p style="color: #e65100;">No predictions available</p>
+                        </div>
+                    `;
+                }
+                
+                // Group statistics with error handling
+                const groupStats = {};
+                predictions.forEach(pred => {
+                    if (pred && pred.group && typeof pred.predictedWeight === 'number') {
+                        if (!groupStats[pred.group]) {
+                            groupStats[pred.group] = [];
+                        }
+                        groupStats[pred.group].push(pred.predictedWeight);
+                    }
+                });
+                
+                // Statistical comparison if available
+                let comparisonHTML = '';
+                if (batchResults.comparison === 'mann-whitney') {
+                    try {
+                        const comparisonResults = performMannWhitneyComparison(predictions);
+                        if (comparisonResults && comparisonResults.comparisons && comparisonResults.comparisons.length > 0) {
+                            comparisonHTML = `
+                                <h4>Statistical Comparison (Mann-Whitney U)</h4>
+                                <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+                                    <thead>
+                                        <tr style="background: #f5f5f5;">
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Comparison</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">n1</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">n2</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Median 1 (g)</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Median 2 (g)</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">U</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">p-value</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Cohen's d</th>
+                                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Effect Size</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${comparisonResults.comparisons.map(comp => {
+                                            if (!comp || typeof comp !== 'object') return '';
+                                            
+                                            // Generate asterisk notation for p-value
+                                            let pValueDisplay = 'N/A';
+                                            let asterisks = '';
+                                            if (comp.pValue && typeof comp.pValue === 'number') {
+                                                if (comp.pValue < 0.001) {
+                                                    asterisks = '***';
+                                                } else if (comp.pValue < 0.01) {
+                                                    asterisks = '**';
+                                                } else if (comp.pValue < 0.05) {
+                                                    asterisks = '*';
+                                                } else {
+                                                    asterisks = 'n.s.';
+                                                }
+                                                pValueDisplay = `${comp.pValue.toFixed(4)} (${asterisks})`;
+                                            }
+                                            
+                                            return `
+                                                <tr>
+                                                    <td style="padding: 8px; border: 1px solid #ddd;">${comp.group1 || 'N/A'} vs ${comp.group2 || 'N/A'}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${comp.n1 || 0}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${comp.n2 || 0}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(comp.median1 && typeof comp.median1 === 'number') ? comp.median1.toFixed(3) : 'N/A'}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(comp.median2 && typeof comp.median2 === 'number') ? comp.median2.toFixed(3) : 'N/A'}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(comp.u && typeof comp.u === 'number') ? comp.u.toFixed(0) : 'N/A'}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pValueDisplay}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(comp.cohensD && typeof comp.cohensD === 'number') ? comp.cohensD.toFixed(3) : 'N/A'}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${comp.effectSize || 'N/A'}</td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            `;
+                        }
+                    } catch (compError) {
+                        console.warn('Error in statistical comparison:', compError);
+                        comparisonHTML = `
+                            <h4>Statistical Comparison (Mann-Whitney U)</h4>
+                            <p style="color: #d32f2f;">Error generating statistical comparison</p>
+                        `;
+                    }
+                }
+                
+                // Validation summary if available
+                let validationHTML = '';
+                if (experimentalWeights && experimentalWeights.length > 0) {
+                    try {
+                        const validWeights = experimentalWeights.filter(w => w && typeof w.predictionError === 'number');
+                        if (validWeights.length > 0) {
+                            const avgError = validWeights.reduce((sum, w) => sum + w.predictionError, 0) / validWeights.length;
+                            const errorsByRange = {
+                                excellent: validWeights.filter(w => w.predictionError < 10).length,
+                                good: validWeights.filter(w => w.predictionError >= 10 && w.predictionError < 20).length,
+                                fair: validWeights.filter(w => w.predictionError >= 20).length
+                            };
+                            
+                            validationHTML = `
+                                <h4>Prediction Validation</h4>
+                                <p><strong>Animals with experimental weights:</strong> ${validWeights.length} of ${predictions.length}</p>
+                                <p><strong>Average prediction error:</strong> ${avgError.toFixed(1)}%</p>
+                                <p><strong>Error distribution:</strong> Excellent (&lt;10%): ${errorsByRange.excellent}, Good (10-20%): ${errorsByRange.good}, Fair (&gt;20%): ${errorsByRange.fair}</p>
+                            `;
+                        }
+                    } catch (valError) {
+                        console.warn('Error in validation summary:', valError);
+                        validationHTML = `
+                            <h4>Prediction Validation</h4>
+                            <p style="color: #d32f2f;">Error generating validation summary</p>
+                        `;
+                    }
+                }
+                
+                return `
+                    <h3>Batch Tumor Weight Predictions</h3>
+                    <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-left: 4px solid #f57c00; margin-bottom: 20px;">
+                        <h4>Summary (Target Day: ${targetDay || 'N/A'})</h4>
+                        <p><strong>Total animals predicted:</strong> ${predictions.length}</p>
+                        
+                        <h4>Group Statistics</h4>
+                        <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+                            <thead>
+                                <tr style="background: #f5f5f5;">
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Group</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">n</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Median (g)</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Range (g)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${Object.entries(groupStats).map(([group, weights]) => {
+                                    if (!weights || weights.length === 0) return '';
+                                    try {
+                                        return `
+                                            <tr>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${group}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${weights.length}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${calculateMedian(weights).toFixed(3)}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${Math.min(...weights).toFixed(3)} - ${Math.max(...weights).toFixed(3)}</td>
+                                            </tr>
+                                        `;
+                                    } catch (error) {
+                                        console.warn('Error processing group stats for:', group, error);
+                                        return `
+                                            <tr>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${group}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${weights.length}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error</td>
+                                            </tr>
+                                        `;
+                                    }
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        
+                        ${validationHTML}
+                        ${comparisonHTML}
+                        
+                        <h4>Individual Predictions</h4>
+                        <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+                            <thead>
+                                <tr style="background: #f5f5f5;">
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Animal ID</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Group</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Predicted Weight (g)</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Experimental Weight (g)</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error (%)</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">R²</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${predictions.map(pred => {
+                                    if (!pred || typeof pred !== 'object') return '';
+                                    try {
+                                        const exp = experimentalWeights ? experimentalWeights.find(e => e && e.animalId === pred.animalId) : null;
+                                        return `
+                                            <tr>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${pred.animalId || 'N/A'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${pred.group || 'N/A'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(pred.predictedWeight && typeof pred.predictedWeight === 'number') ? pred.predictedWeight.toFixed(3) : 'N/A'} (Day ${pred.targetDay || 'N/A'})</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(exp && exp.experimentalWeight && typeof exp.experimentalWeight === 'number') ? exp.experimentalWeight.toFixed(3) + ' (Day ' + (exp.sacrificeDay || 'N/A') + ')' : 'N/A'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(exp && exp.predictionError && typeof exp.predictionError === 'number') ? exp.predictionError.toFixed(1) + '%' : 'N/A'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${(pred.r2 && typeof pred.r2 === 'number') ? pred.r2.toFixed(3) : 'N/A'}</td>
+                                            </tr>
+                                        `;
+                                    } catch (predError) {
+                                        console.warn('Error processing prediction:', pred, predError);
+                                        return `
+                                            <tr>
+                                                <td style="padding: 8px; border: 1px solid #ddd;">${pred.animalId || 'N/A'}</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">Error</td>
+                                            </tr>
+                                        `;
+                                    }
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error in generateBatchPredictionReportHTML:', error);
+                return `
+                    <h3>Batch Tumor Weight Predictions</h3>
+                    <div style="background: #ffebee; padding: 20px; border-radius: 8px; border-left: 4px solid #f44336; margin-bottom: 20px;">
+                        <p style="color: #d32f2f;">Error generating batch prediction report: ${error.message}</p>
+                    </div>
+                `;
+            }
         }
 
         function generateStatisticalComparisonHTML() {
@@ -4789,9 +5951,38 @@
             debugLog('DOM loaded, setting up event listeners...');
 
             const fileInput = document.getElementById('fileInput');
+            const fileLabel = document.getElementById('fileLabel');
+            
             if (fileInput) {
                 fileInput.addEventListener('change', handleFileSelect);
                 debugLog('File event listener configured');
+                
+                // Add drag and drop functionality to main file input
+                if (fileLabel) {
+                    fileLabel.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        this.style.borderColor = 'rgba(79, 172, 254, 1)';
+                        this.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.3), rgba(0, 153, 204, 0.3))';
+                    });
+                    
+                    fileLabel.addEventListener('dragleave', function(e) {
+                        e.preventDefault();
+                        this.style.borderColor = 'rgba(79, 172, 254, 0.5)';
+                        this.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1))';
+                    });
+                    
+                    fileLabel.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        this.style.borderColor = 'rgba(79, 172, 254, 0.5)';
+                        this.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1))';
+                        
+                        const files = e.dataTransfer.files;
+                        if (files.length > 0) {
+                            fileInput.files = files;
+                            fileInput.dispatchEvent(new Event('change'));
+                        }
+                    });
+                }
             } else {
                 debugError('File input not found');
             }
@@ -4805,8 +5996,8 @@
                 showNotification('ViVo initialized successfully', 'success');
             }, 1000);
         });
+        
         debugLog('ViVo initialized');
     </script>
 </body>
-
 </html>
