@@ -91,7 +91,6 @@ Where:
 - **Mann-Whitney U Test**: Non-parametric comparison between groups
 - **Effect Size**: Cohen's d calculation for practical significance
 - **Multiple Comparisons**: Basic comparison functionality
-- **Effect Size**: Cohen's d calculations
 
 ### Outlier Detection
 Basic detection algorithms identify:
