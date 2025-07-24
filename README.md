@@ -31,7 +31,7 @@
 ### Input Format
 The application accepts CSV files with the following structure:
 
-| Animal_ID | Group | Day_0 | Day_7 | Day_14 | Day_21 | ... |
+| Animal_ID | Group | 0 | 7 | 14 | 21 | ... |
 |-----------|-------|-------|-------|--------|--------|-----|
 | Animal_1  | Control | 100 | 150 | 200 | 300 | ... |
 | Animal_2  | Treatment_A | 95 | 120 | 140 | 160 | ... |
