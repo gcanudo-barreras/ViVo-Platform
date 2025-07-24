@@ -31,7 +31,7 @@
 ### Input Format
 The application accepts CSV files with the following structure:
 
-| Animal_ID | Group | 0 | 7 | 14 | 21 | ... |
+| Animal_ID | Group | Day_0 | Day_7 | Day_14 | Day_21 | ... |
 |-----------|-------|-------|-------|--------|--------|-----|
 | Animal_1  | Control | 100 | 150 | 200 | 300 | ... |
 | Animal_2  | Treatment_A | 95 | 120 | 140 | 160 | ... |
@@ -78,6 +78,15 @@ Any modern browser supporting JavaScript ES6+, FileReader API, and CSS Grid
 
 ## Scientific Methods
 
+### Growth Rate Calculation
+Tumor Growth Rate (TGR) is calculated using the formula:
+```
+r(x→y) = ln(V_y / V_x) / (t_y - t_x)
+```
+Where:
+- `V_x`, `V_y` are volumes at times x and y
+- `t_x`, `t_y` are the corresponding time points
+
 ### Statistical Analysis
 - **Mann-Whitney U Test**: Non-parametric comparison between groups
 - **Effect Size**: Cohen's d calculation for practical significance
@@ -89,6 +98,27 @@ Basic detection algorithms identify:
 - **Measurement Errors**: Inconsistent or impossible values
 - **Growth Anomalies**: Unusual growth patterns
 - **Technical Artifacts**: Instrument-related errors
+
+## Key Improvements in Version 1.2
+
+### New Features
+- **Enhanced Matrix Functionality**: 
+  - Duplicate comparison prevention
+  - Smart Clear All button (only active when needed)
+  - Improved comparison titles showing actual r(x-y) values
+  - Matrix display matches software layout (removed empty diagonal elements)
+
+- **Advanced Statistical Comparisons**:
+  - Prevention of duplicate statistical comparisons
+  - Automated comparison validation
+  - Enhanced user feedback and notifications
+  - Improved comparison result display
+
+- **Professional Report Generation**:
+  - Clean matrix presentation without empty elements
+  - Proper statistical comparison labeling
+  - Enhanced visual presentation
+  - Embedded chart capture
 
 ### User Experience Enhancements
 - **Intuitive Interactions**: Clear visual feedback for all user actions
@@ -125,19 +155,17 @@ Basic detection algorithms identify:
 ```
 ViVo-Platform/
 ├── index.html                            # Main application file
-├── assets/                               #Logos
-|   ├── ViVo.png
-│   └── ViVo_day.png
 ├── css/
 │   └── styles.css                        # Stylesheet
+├── js/
+│   └── intelligent_outlier_detector.js   # Outlier detection
+├── docs/                                 # Documents
+│   ├── ViVo_USER_MANUAL.md
+│   └── 4T1-progression-early_dataset.csv
 ├── datasets/                             # Sample datasets
 │   ├── Daskalakis_18-days_dataset.csv
 |   ├── 4T1-progression-late_dataset.csv
 │   └── 4T1-progression-early_dataset.csv
-├── docs/                                 # Documents
-│   └── ViVo_USER_MANUAL.md
-├── js/
-│   └── intelligent_outlier_detector.js   # Outlier detection
 ├── LICENSE
 └── README.md                             # This file
 ```
@@ -154,23 +182,22 @@ This is a research tool developed for scientific analysis. For questions, sugges
 ## Developers  
 List of main developers and contact emails:  
   - [ ] [Guillermo Canudo-Barreras](https://orcid.org/0000-0002-1949-9185). Contact: [canudobarreras@unizar.es](mailto:canudobarreras@unizar.es)  
+
+## Scientific Contributors
+The mathematical methodology implemented in this software was developed collaboratively in the following research work:
   - [ ] [Eduardo Romanos](https://orcid.org/0000-0002-9918-3374). Contact: [eromanos.iacs@aragon.es](mailto:eromanos.iacs@aragon.es)
   - [ ] [Raquel P. Herrera](https://orcid.org/0000-0002-5244-9569). Contact [raquelph@unizar.es](mailto:raquelph@unizar.es)
   - [ ] [M. Concepción Gimeno](https://orcid.org/0000-0003-0553-0695). Contact [gimeno@unizar.es](mailto:gimeno@unizar.es)
 
+  For details, please refer to the original publication:
+  **[Full article title]**, *Journal Name*, Year. DOI: [insert DOI]
+
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. Please cite appropriately when used in scientific publications.
+This software is developed for research purposes. Please cite appropriately when used in scientific publications.
 
-## Potential Enhancements
+## Research Applications
 
-### Possible Future Features
-- **Multi-study Analysis**: Compare results across different experiments
-- **Additional Statistics**: More statistical tests and methods
-- **Data Formats**: Support for additional file formats
-- **Performance**: Improved handling of larger datasets
-
-### Research Applications
 - **Preclinical Studies**: Drug efficacy evaluation
 - **Comparative Analysis**: Treatment comparison studies
 - **Longitudinal Analysis**: Time-course studies
@@ -187,4 +214,4 @@ For technical support or scientific questions:
 
 **ViVo Platform** - In ViVo Metrics
 
-*Version 1.0 - Production Release*
+*Version 1.0 - Research Beta*
