@@ -40,7 +40,7 @@ class UIManager {
                 <div class="modal-header">
                     <div></div>
                     <div class="logo-container" style="margin-bottom: -25px; margin-top: -50px;">
-                        <img src="https://github.com/gcanudo-barreras/ViVo-Platform/blob/0c0e6c2090dedfea8622965afdbef2accc8184e0/Assets/ViVo.png" alt="ViVo Logo" style="width: 212px; height: 212px;">
+                        <img src="Assets/ViVo.png" alt="ViVo Logo" style="width: 212px; height: 212px;">
                     </div>
                     <div></div>
                 </div>
