@@ -1,4 +1,4 @@
-<div align="center"><img src="ViVo_day.png" alt="ViVo Logo" height="250"/></div>
+<div align="center"><img src="Assets/ViVo_day.png" alt="ViVo Logo" height="250"/></div>
 
 <p align="center>"A comprehensive web-based application for analyzing in vivo anticancer efficacy data through advanced statistical methods and interactive visualizations.</p>
 
