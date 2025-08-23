@@ -1,0 +1,724 @@
+/**
+ * Scientific Wizard Styles
+ * Comprehensive styling for the Scientific Setup Wizard
+ * Designed to match ViVo's existing aesthetic while providing clear UX
+ */
+
+/* ===== WIZARD MODAL BASE ===== */
+.wizard-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 500;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.wizard-modal-active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.wizard-modal-closing {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* ===== WIZARD OVERLAY ===== */
+.wizard-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* ===== WIZARD CONTAINER ===== */
+.wizard-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 750px;
+    height: 90vh;
+    max-height: 90vh;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #e0e0e0;
+}
+
+/* ===== WIZARD HEADER ===== */
+.wizard-header {
+    position: relative;
+    padding: 24px 24px 20px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wizard-progress {
+    width: 95%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+    margin-bottom: 18px;
+}
+
+.wizard-progress-bar {
+    height: 100%;
+    background: linear-gradient(45deg, #4facfe, #00f2fe);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 10px rgba(79, 172, 254, 0.3);
+}
+
+.wizard-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    color: #e0e0e0;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wizard-close:hover {
+    background: rgba(255, 59, 48, 0.2);
+    color: #ff3b30;
+    transform: rotate(90deg);
+}
+
+/* ===== WIZARD CONTENT ===== */
+.wizard-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: rgba(255, 255, 255, 0.02);
+    position: relative;
+}
+
+.wizard-content-container {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    padding: 32px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(79, 172, 254, 0.5) rgba(255, 255, 255, 0.1);
+    position: relative;
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    /* Force scrollbar to always be visible */
+    scrollbar-gutter: stable;
+    /* Performance optimization */
+    will-change: transform, opacity;
+}
+
+.wizard-content-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.wizard-content-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.wizard-content-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6));
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wizard-content-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, rgba(79, 172, 254, 0.8), rgba(0, 242, 254, 0.8));
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ===== WIZARD STEP CONTENT ===== */
+.wizard-step {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.wizard-step-title {
+    font-size: 24px;
+    font-weight: 600;
+    background: linear-gradient(45deg, #4facfe, #00f2fe, #fa709a);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0 0 8px 0;
+}
+
+.wizard-step-subtitle {
+    font-size: 15px;
+    color: #a0a0a0;
+    margin: 0 0 32px 0;
+    line-height: 1.5;
+}
+
+.wizard-question h3 {
+    font-size: 18px;
+    color: #e0e0e0;
+    margin: 0 0 24px 0;
+    font-weight: 500;
+}
+
+/* ===== WIZARD OPTIONS ===== */
+.wizard-options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+    text-align: left;
+}
+
+.wizard-option {
+    position: relative;
+    display: block;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 0;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    /* Removed heavy backdrop-filter for performance */
+}
+
+.wizard-option:hover {
+    background: rgba(79, 172, 254, 0.1);
+    border-color: rgba(79, 172, 254, 0.3);
+    box-shadow: 0 5px 20px rgba(79, 172, 254, 0.2);
+    transform: translateY(-2px);
+}
+
+.wizard-option-selected {
+    background: linear-gradient(135deg, rgba(79, 172, 254, 0.15), rgba(0, 242, 254, 0.15));
+    border-color: #4facfe;
+    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+    transform: translateY(-2px);
+}
+
+.wizard-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.wizard-option-content {
+    padding: 18px;
+    position: relative;
+}
+
+.wizard-option-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.wizard-option-header h4 {
+    font-size: 16px;
+    font-weight: 500;
+    color: #e0e0e0;
+    margin: 0;
+}
+
+.wizard-badge {
+    background: linear-gradient(45deg, #4facfe, #00f2fe);
+    color: #000;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+}
+
+.wizard-option-description {
+    color: #ccc;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 12px 0;
+}
+
+.wizard-option-details {
+    color: #bbb;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid #4facfe;
+    margin-top: 8px;
+    backdrop-filter: blur(5px);
+}
+
+.wizard-option-details strong {
+    color: #4facfe;
+}
+
+/* ===== WIZARD HELP ===== */
+.wizard-help {
+    background: linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 242, 254, 0.1));
+    border: 1px solid rgba(79, 172, 254, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.wizard-help p {
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.wizard-help strong {
+    color: #4facfe;
+    font-weight: 500;
+}
+
+/* ===== WIZARD SUMMARY ===== */
+.wizard-summary {
+    text-align: left;
+}
+
+.wizard-summary-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.wizard-summary-section {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.wizard-summary-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #4facfe;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wizard-summary-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.wizard-summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border-left: 3px solid rgba(79, 172, 254, 0.5);
+}
+
+.wizard-summary-label {
+    font-size: 13px;
+    color: #90a4ae;
+    font-weight: 500;
+}
+
+.wizard-summary-value {
+    font-size: 15px;
+    color: #e0e0e0;
+    font-weight: 600;
+}
+
+.wizard-summary-highlight {
+    color: #4facfe;
+    background: rgba(79, 172, 254, 0.1);
+    padding: 2px 8px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.wizard-summary-explanation {
+    font-size: 12px;
+    color: #90a4ae;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.wizard-rationale {
+    color: #b0b0b0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.wizard-rationale p {
+    margin: 0 0 12px 0;
+}
+
+.wizard-rationale strong {
+    color: #e0e0e0;
+}
+
+.wizard-references {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.wizard-reference {
+    color: #90a4ae;
+    font-size: 13px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    border-left: 2px solid rgba(79, 172, 254, 0.3);
+}
+
+/* ===== WIZARD FOOTER ===== */
+.wizard-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    /* Removed backdrop-filter for performance */
+}
+
+.wizard-step-indicator {
+    color: #a0a0a0;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+/* ===== WIZARD BUTTONS ===== */
+.wizard-btn {
+    padding: 0.75rem 1.25rem;
+    justify-content: center;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 100px;
+}
+
+/*.wizard-btn:focus {
+    box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.3);
+}*/
+
+.wizard-btn-primary {
+    background: white;
+    color: rgb(37, 32, 79);
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.wizard-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+}
+
+.wizard-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.wizard-btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.wizard-btn-success {
+    background: rgb(207, 81, 53);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 154, 86, 0.3);
+}
+
+.wizard-btn-success:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 154, 86, 0.5);
+}
+
+.wizard-btn-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+    .wizard-container {
+        width: 95%;
+        max-height: 95vh;
+        margin: 2.5vh auto;
+        border-radius: 16px;
+    }
+    
+    .wizard-content {
+        padding: 24px 20px;
+    }
+    
+    .wizard-footer {
+        padding: 20px;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .wizard-step-title {
+        font-size: 24px;
+    }
+    
+    .wizard-options {
+        gap: 12px;
+    }
+    
+    .wizard-option-content {
+        padding: 20px;
+    }
+    
+    .wizard-option-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .wizard-summary-sections {
+        gap: 20px;
+    }
+    
+    .wizard-summary-section {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .wizard-container {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        top: 0;
+        left: 0;
+        transform: none;
+    }
+    
+    .wizard-content {
+        padding: 20px 16px;
+    }
+    
+    .wizard-footer {
+        padding: 16px;
+    }
+    
+    .wizard-btn {
+        min-width: 100px;
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}
+
+/* ===== ACCESSIBILITY ===== */
+@media (prefers-reduced-motion: reduce) {
+    .wizard-modal,
+    .wizard-progress-bar,
+    .wizard-option,
+    .wizard-btn {
+        transition: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .wizard-container {
+        border: 2px solid #4facfe;
+    }
+    
+    .wizard-option {
+        border-width: 2px;
+    }
+    
+    .wizard-option-selected {
+        border-width: 3px;
+    }
+}
+
+/* ===== WIZARD TRIGGER BUTTON ===== */
+.wizard-trigger-btn {
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    color: #000;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    margin-right: 12px;
+    min-width: 160px;
+    justify-content: center;
+}
+
+.wizard-trigger-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.5);
+}
+
+.wizard-trigger-btn.prominent {
+    background: linear-gradient(135deg, #ff9a56, #ffad56);
+    box-shadow: 0 6px 20px rgba(255, 154, 86, 0.4);
+    animation: wizard-glow 6s ease-in-out infinite;
+    font-size: 16px;
+    padding: 16px 28px;
+}
+
+.wizard-trigger-btn.prominent:hover {
+    background: linear-gradient(135deg, #ff8a42, #ff9d42);
+    box-shadow: 0 10px 30px rgba(255, 154, 86, 0.6);
+    transform: translateY(-4px);
+}
+
+.wizard-trigger-btn.secondary {
+    background: linear-gradient(135deg, #6c757d, #8b949e);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);
+    font-size: 14px;
+    padding: 12px 18px;
+    animation: none;
+}
+
+.wizard-trigger-btn.secondary:hover {
+    background: linear-gradient(135deg, #5a6268, #7a8288);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    transform: translateY(-2px);
+}
+
+.wizard-trigger-btn::before {
+    content: "";
+    font-size: 16px;
+}
+
+/* Optimized glow animation for wizard - reduced frequency */
+@keyframes wizard-glow {
+    0%, 100% { 
+        box-shadow: 0 6px 20px rgba(255, 154, 86, 0.4); 
+    }
+    50% { 
+        box-shadow: 0 8px 25px rgba(255, 154, 86, 0.5); 
+    }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes wizardSlideIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes wizardSlideOut {
+    from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+}
+
+.wizard-modal-active .wizard-container {
+    animation: wizardSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wizard-modal-closing .wizard-container {
+    animation: wizardSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== STEP TRANSITION ANIMATIONS ===== */
+/* Active state - center position */
+.wizard-content-container.slide-active {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Exit animations */
+.wizard-content-container.slide-out-left {
+    transform: translateX(-100%);
+    opacity: 0;
+}
+
+.wizard-content-container.slide-out-right {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+/* Entry animations - must force initial position */
+.wizard-content-container.slide-in-right {
+    transform: translateX(100%) !important;
+    opacity: 0 !important;
+    transition: none !important;
+}
+
+.wizard-content-container.slide-in-left {
+    transform: translateX(-100%) !important;
+    opacity: 0 !important;
+    transition: none !important;
+}
+
+/* Force transition back when going to active */
+.wizard-content-container.slide-in-right.slide-active,
+.wizard-content-container.slide-in-left.slide-active {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}

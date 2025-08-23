@@ -1,0 +1,350 @@
+/**
+ * Tutorial Styles
+ * CSS styles for tutorial highlighting and visual feedback
+ */
+
+/* Tutorial Highlighting */
+.tutorial-highlight {
+    position: relative;
+    z-index: 200;
+    animation: tutorialPulse 2s infinite;
+    box-shadow: 0 0 0 4px linear-gradient(45deg, rgb(233, 30, 99), rgb(173, 20, 87)) !important;
+    border-radius: 12px !important;
+    will-change: transform, box-shadow;
+    transform: translateZ(0); /* Force hardware acceleration */
+}
+
+@keyframes tutorialPulse {
+    0% {
+        box-shadow: 0 0 0 4px rgba(233, 30, 99, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(173, 20, 87, 0.3);
+    }
+    100% {
+        box-shadow: 0 0 0 4px rgba(233, 30, 99, 0.6);
+    }
+}
+
+.tutorial-highlight::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    background: rgba(79, 172, 254, 0.1);
+    border-radius: 16px;
+    z-index: -1;
+    animation: tutorialGlow 2s infinite;
+    will-change: opacity;
+    transform: translateZ(0); /* Force hardware acceleration */
+}
+
+@keyframes tutorialGlow {
+    0%, 100% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Enhanced tutorial interaction styles */
+.tutorial-highlight.clickable {
+    cursor: pointer !important;
+    transform: scale(1.02) translateZ(0);
+    transition: transform 0.3s ease;
+    will-change: transform;
+}
+
+/* Ensure result cards show proper borders during tutorial */
+.result-card.tutorial-highlight {
+    border: 4px solid rgba(233, 30, 99, 0.8) !important;
+    box-shadow: 0 0 0 4px rgba(233, 30, 99, 0.6), 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+.intelligent-outlier-analysis-card.tutorial-highlight,
+.statistical-comparison-card.tutorial-highlight {
+    border: 4px solid rgba(233, 30, 99, 0.8) !important;
+    box-shadow: 0 0 0 4px rgba(233, 30, 99, 0.6), 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+/*.tutorial-highlight.clickable:hover {
+    transform: scale(1.05) translateZ(0);
+    box-shadow: 0 0 0 6px rgba(233, 30, 99, 0.8) !important;
+    will-change: transform, box-shadow;
+}*/
+
+/* Tutorial interaction indicators */
+.tutorial-waiting-click::after {
+    content: '👇 Click here';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(233, 30, 99, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    animation: tutorialBounce 2s infinite;
+    z-index: 220;
+}
+
+.tutorial-waiting-scroll::after {
+    content: '👇 Scroll down to find this';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(79, 172, 254, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    animation: tutorialBounce 2s infinite;
+    z-index: 220;
+}
+
+.tutorial-waiting-input::after {
+    content: '⌨️ Type here';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    animation: tutorialBounce 2s infinite;
+    z-index: 220;
+}
+
+@keyframes tutorialBounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    40% {
+        transform: translateX(-50%) translateY(-10px);
+    }
+    60% {
+        transform: translateX(-50%) translateY(-5px);
+    }
+}
+
+/* Tutorial mode body state */
+.has-selected-cell .tgr-matrix td:not(.tgr-selected) {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.has-selected-cell .tgr-matrix td.tgr-selected {
+    opacity: 1;
+    cursor: pointer;
+}
+
+/* TGR Matrix cell selection styles for tutorial */
+/*.tgr-selected {
+    border: 3px solid #007bff !important;
+    box-shadow: 0 0 15px rgba(0,123,255,0.6) !important;
+    position: relative;
+    z-index: 10;
+}*/
+
+/* Tutorial notification positioning and animations */
+.notification.tutorial-notification {
+    animation: slideInRight 0.5s ease;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    contain: layout style paint;
+}
+
+/* Smooth fade for tutorial notifications */
+.notification.tutorial-notification.fade-out {
+    animation: slideOutRight 0.5s ease;
+    pointer-events: none;
+}
+
+/* Prevent layout shifts during tutorial notification animations */
+.notifications-container {
+    position: relative;
+}
+
+.notification.tutorial-notification.removing {
+    animation: slideOutRight 0.4s ease forwards;
+    pointer-events: none; /* Prevent interaction during removal */
+    will-change: transform, opacity;
+    transform: translateZ(0); /* Force hardware acceleration */
+    opacity: 1; /* Ensure it starts visible */
+    z-index: 519; /* Ensure it stays on top during removal */
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+
+/* Fixed tutorial notification styles - now handled by NotificationService */
+#fixedTutorialNotification.fixed-tutorial {
+    font-size: 16px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Tutorial step transition animations */
+.tutorial-step-enter {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: tutorialStepEnter 0.5s ease forwards;
+}
+
+@keyframes tutorialStepEnter {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tutorial-step-exit {
+    opacity: 1;
+    transform: translateY(0);
+    animation: tutorialStepExit 0.3s ease forwards;
+}
+
+@keyframes tutorialStepExit {
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+/* Responsive tutorial styles */
+@media (max-width: 768px) {
+    .tutorial-waiting-click::after,
+    .tutorial-waiting-scroll::after,
+    .tutorial-waiting-input::after {
+        font-size: 10px;
+        padding: 2px 6px;
+        top: -25px;
+    }
+    
+    #fixedTutorialNotification {
+        top: 10px;
+        left: 10px;
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+    
+    .tutorial-highlight {
+        box-shadow: 0 0 0 2px rgba(233, 30, 99, 0.6) !important;
+    }
+    
+    .tutorial-highlight.clickable {
+        transform: scale(1.01);
+    }
+    
+    .tutorial-highlight.clickable:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.8) !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .tutorial-highlight {
+        box-shadow: 0 0 0 4px #ff0000 !important;
+        border: 2px solid #ff0000 !important;
+    }
+    
+    .tutorial-waiting-click::after,
+    .tutorial-waiting-scroll::after,
+    .tutorial-waiting-input::after {
+        background: #000000 !important;
+        color: #ffffff !important;
+        border: 2px solid #ff0000;
+    }
+    
+    #fixedTutorialNotification {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid #000000 !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .tutorial-highlight {
+        animation: none;
+    }
+    
+    .tutorial-highlight::before {
+        animation: none;
+        opacity: 0.4;
+    }
+    
+    .tutorial-waiting-click::after,
+    .tutorial-waiting-scroll::after,
+    .tutorial-waiting-input::after {
+        animation: none;
+    }
+    
+    .tutorial-step-enter,
+    .tutorial-step-exit {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+    
+    #fixedTutorialNotification {
+        animation: none;
+    }
+    
+    /* Simplified tutorial notification animations for reduced motion */
+    .notification.tutorial-notification {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+    
+    .notification.tutorial-notification.removing,
+    .notification.tutorial-notification.fade-out {
+        animation: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+}
