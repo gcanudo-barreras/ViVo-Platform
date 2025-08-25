@@ -85,8 +85,20 @@ class OutlierWorker {
             const logV = Math.log(v);
             const outlier = MathUtils.isOutlier(logV, bounds);
             if (outlier && animal.timePoints[i] !== 0) {
-                animal.flags.push(this.createFlag('INTRA_OUTLIER', animal, 
-                    animal.timePoints[i], v));
+                const flag = this.createFlag('INTRA_OUTLIER', animal, animal.timePoints[i], v);
+                animal.flags.push(flag);
+                // Also add to flaggedMeasurements like main thread does
+                const existing = animal.flaggedMeasurements.find(f => f.index === i);
+                if (existing) {
+                    existing.flags.push(flag);
+                } else {
+                    animal.flaggedMeasurements.push({
+                        index: i, 
+                        day: animal.timePoints[i], 
+                        value: v, 
+                        flags: [flag]
+                    });
+                }
             }
         });
     }
