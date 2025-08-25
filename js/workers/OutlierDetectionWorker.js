@@ -1,20 +1,8 @@
+// Import MathUtils from main thread
+importScripts('../core/MathUtils.js');
+
 class OutlierWorker {
     constructor() {
-        this.logCache = new Map();
-    }
-
-    fastLog(value) {
-        if (value <= 0) return NaN;
-        const key = Math.round(value * 1000) / 1000;
-        if (this.logCache.has(key)) return this.logCache.get(key);
-        
-        const result = Math.log(value);
-        if (this.logCache.size >= 500) {
-            const firstKey = this.logCache.keys().next().value;
-            this.logCache.delete(firstKey);
-        }
-        this.logCache.set(key, result);
-        return result;
     }
 
     createFlag(type, animal, day, value, extra = {}) {
@@ -49,8 +37,8 @@ class OutlierWorker {
                     const dayDiff = day - prevDay;
                     
                     if (prev > 0 && dayDiff > 0) {
-                        // Use same TGR calculation as main thread: MathUtils.calculateTumorGrowthRate
-                        const r = this.fastLog(val / prev) / dayDiff;
+                        // Use exact same TGR calculation as main thread
+                        const r = MathUtils.calculateTumorGrowthRate(prev, val, prevDay, day);
                         if (!isNaN(r)) {
                             const absR = Math.abs(r);
                             if (val > prev && absR > config.maxGrowthRate) {
@@ -84,78 +72,54 @@ class OutlierWorker {
     }
 
     detectIntraAnimalOutliers(animal, config) {
-        const validMeasurements = animal.measurements.filter(v => v > 0);
-        if (validMeasurements.length < 4) return;
-        
-        // Use same IQR method as main thread: MathUtils.calculateIQRBounds
-        const logVals = validMeasurements.map(v => this.fastLog(v));
-        const sortedLogVals = [...logVals].sort((a, b) => a - b);
-        const n = sortedLogVals.length;
-        
-        // Calculate IQR bounds
-        const q1Index = Math.floor(n * 0.25);
-        const q3Index = Math.floor(n * 0.75);
-        const q1 = sortedLogVals[q1Index];
-        const q3 = sortedLogVals[q3Index];
-        const iqr = q3 - q1;
-        const multiplier = config.iqrSensitivity || 1.5;
-        
-        const bounds = {
-            lower: q1 - multiplier * iqr,
-            upper: q3 + multiplier * iqr
-        };
-        
+        // Use exact same logic as main thread: MathUtils.validateNumericData
+        const validMeasurements = MathUtils.validateNumericData(animal.measurements, true);
+        const logVals = validMeasurements.map(v => Math.log(v));
+        if (logVals.length < 4) return;
+
+        // Use exact same IQR calculation as main thread: MathUtils.calculateIQRBounds
+        const bounds = MathUtils.calculateIQRBounds(logVals, config.iqrSensitivity);
+
         animal.measurements.forEach((v, i) => {
-            if (v > 0 && animal.timePoints[i] !== 0) {
-                const logV = this.fastLog(v);
-                if (logV < bounds.lower || logV > bounds.upper) {
-                    animal.flags.push(this.createFlag('INTRA_OUTLIER', animal, 
-                        animal.timePoints[i], v));
-                }
+            if (v <= 0) return;
+            const logV = Math.log(v);
+            const outlier = MathUtils.isOutlier(logV, bounds);
+            if (outlier && animal.timePoints[i] !== 0) {
+                animal.flags.push(this.createFlag('INTRA_OUTLIER', animal, 
+                    animal.timePoints[i], v));
             }
         });
     }
 
     analyzeGroupOutliers(groupAnimals, groupName, config) {
-        const dayDataMap = {};
-        
-        groupAnimals.forEach(animal => {
-            animal.timePoints.forEach((day, i) => {
-                const val = animal.measurements[i];
-                if (val > 0) {
-                    (dayDataMap[day] ||= []).push(this.fastLog(val));
-                }
-            });
-        });
-        
+        // Use exact same logic as main thread
+        const days = {};
+        groupAnimals.forEach(a => a.timePoints.forEach((d, i) => {
+            const val = a.measurements[i];
+            if (val > 0) (days[d] = days[d] || []).push(Math.log(val));
+        }));
+
         const groupFlags = [];
         
-        Object.entries(dayDataMap).forEach(([day, values]) => {
-            if (values.length >= config.minGroupSizeForIQR) {
-                values.sort((a, b) => a - b);
-                const n = values.length;
-                const q1 = values[Math.floor(n * 0.25)];
-                const q3 = values[Math.floor(n * 0.75)];
-                const iqr = q3 - q1;
-                // Use same IQR sensitivity as main thread
-                const multiplier = config.iqrSensitivity || 1.5;
-                const bounds = { lower: q1 - multiplier * iqr, upper: q3 + multiplier * iqr };
-                
-                groupAnimals.forEach(animal => {
-                    const dayIndex = animal.timePoints.indexOf(parseInt(day));
-                    if (dayIndex !== -1 && parseInt(day) !== 0) {
-                        const val = animal.measurements[dayIndex];
-                        if (val > 0) {
-                            const logVal = this.fastLog(val);
-                            if (logVal < bounds.lower || logVal > bounds.upper) {
-                                groupFlags.push(this.createFlag('GROUP_OUTLIER', 
-                                    { id: animal.id, group: groupName }, parseInt(day), val));
-                            }
-                        }
+        for (const d in days) {
+            const vals = days[d];
+            if (vals.length < config.minGroupSizeForIQR) continue;
+            
+            // Use exact same IQR calculation as main thread
+            const bounds = MathUtils.calculateIQRBounds(vals, config.iqrSensitivity);
+
+            groupAnimals.forEach(a => {
+                const i = a.timePoints.indexOf(+d);
+                if (i !== -1 && a.measurements[i] > 0) {
+                    const logVal = Math.log(a.measurements[i]);
+                    const out = MathUtils.isOutlier(logVal, bounds);
+                    if (out && +d !== 0) {
+                        groupFlags.push(this.createFlag('GROUP_OUTLIER', 
+                            { id: a.id, group: groupName }, +d, a.measurements[i]));
                     }
-                });
-            }
-        });
+                }
+            });
+        }
         
         return groupFlags;
     }
