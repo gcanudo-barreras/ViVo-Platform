@@ -49,13 +49,16 @@ class OutlierWorker {
                     const dayDiff = day - prevDay;
                     
                     if (prev > 0 && dayDiff > 0) {
-                        const ratio = val / prev;
-                        const r = Math.abs(this.fastLog(ratio)) / dayDiff;
-                        
-                        if (val > prev && r > config.maxGrowthRate) {
-                            flags.push(this.createFlag('EXTREME_GROWTH', animal, day, val));
-                        } else if (val < prev && r > config.maxDeclineRate) {
-                            flags.push(this.createFlag('EXTREME_DECLINE', animal, day, val));
+                        // Use same TGR calculation as main thread: MathUtils.calculateTumorGrowthRate
+                        const r = this.fastLog(val / prev) / dayDiff;
+                        if (!isNaN(r)) {
+                            const absR = Math.abs(r);
+                            if (val > prev && absR > config.maxGrowthRate) {
+                                flags.push(this.createFlag('EXTREME_GROWTH', animal, day, val));
+                            }
+                            if (val < prev && absR > config.maxDeclineRate) {
+                                flags.push(this.createFlag('EXTREME_DECLINE', animal, day, val));
+                            }
                         }
                     }
                     
@@ -84,18 +87,30 @@ class OutlierWorker {
         const validMeasurements = animal.measurements.filter(v => v > 0);
         if (validMeasurements.length < 4) return;
         
+        // Use same IQR method as main thread: MathUtils.calculateIQRBounds
         const logVals = validMeasurements.map(v => this.fastLog(v));
-        const n = logVals.length;
-        const mean = logVals.reduce((a, b) => a + b) / n;
-        const variance = logVals.reduce((sum, val) => sum + (val - mean) ** 2, 0) / (n - 1);
-        const stdDev = Math.sqrt(variance);
+        const sortedLogVals = [...logVals].sort((a, b) => a - b);
+        const n = sortedLogVals.length;
+        
+        // Calculate IQR bounds
+        const q1Index = Math.floor(n * 0.25);
+        const q3Index = Math.floor(n * 0.75);
+        const q1 = sortedLogVals[q1Index];
+        const q3 = sortedLogVals[q3Index];
+        const iqr = q3 - q1;
+        const multiplier = config.iqrSensitivity || 1.5;
+        
+        const bounds = {
+            lower: q1 - multiplier * iqr,
+            upper: q3 + multiplier * iqr
+        };
         
         animal.measurements.forEach((v, i) => {
-            if (v > 0) {
-                const zScore = Math.abs(this.fastLog(v) - mean) / stdDev;
-                if (zScore > config.zScoreThreshold) {
-                    animal.flags.push(this.createFlag('INTRA_ANIMAL_OUTLIER', animal, 
-                        animal.timePoints[i], v, { zScore }));
+            if (v > 0 && animal.timePoints[i] !== 0) {
+                const logV = this.fastLog(v);
+                if (logV < bounds.lower || logV > bounds.upper) {
+                    animal.flags.push(this.createFlag('INTRA_OUTLIER', animal, 
+                        animal.timePoints[i], v));
                 }
             }
         });
@@ -122,18 +137,19 @@ class OutlierWorker {
                 const q1 = values[Math.floor(n * 0.25)];
                 const q3 = values[Math.floor(n * 0.75)];
                 const iqr = q3 - q1;
-                const bounds = { lower: q1 - 1.5 * iqr, upper: q3 + 1.5 * iqr };
+                // Use same IQR sensitivity as main thread
+                const multiplier = config.iqrSensitivity || 1.5;
+                const bounds = { lower: q1 - multiplier * iqr, upper: q3 + multiplier * iqr };
                 
                 groupAnimals.forEach(animal => {
                     const dayIndex = animal.timePoints.indexOf(parseInt(day));
-                    if (dayIndex !== -1) {
+                    if (dayIndex !== -1 && parseInt(day) !== 0) {
                         const val = animal.measurements[dayIndex];
                         if (val > 0) {
                             const logVal = this.fastLog(val);
                             if (logVal < bounds.lower || logVal > bounds.upper) {
                                 groupFlags.push(this.createFlag('GROUP_OUTLIER', 
-                                    { id: animal.id, group: groupName }, parseInt(day), val, 
-                                    { logValue: logVal, bounds }));
+                                    { id: animal.id, group: groupName }, parseInt(day), val));
                             }
                         }
                     }
