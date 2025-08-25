@@ -1,10 +1,6 @@
-/**
- * Centralized service for report generation and data export
- */
 
 class ReportGenerator {
     constructor() {
-        this.chartService = null;
         this.animalVisualData = {};
         this.professionalColors = [
             '#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#593E25',
@@ -21,9 +17,6 @@ class ReportGenerator {
         };
     }
 
-    initialize(chartService = null) {
-        this.chartService = chartService;
-    }
 
     exportEnhancedCSV(processedAnimals, options = {}) {
         try {
@@ -337,11 +330,8 @@ class ReportGenerator {
                         t: 20,
                         b: 50
                     },
-                    height: chartId === 'mainChart' ? 400 : 350
+                    height: 350
                 };
-
-                const professionalColors = this.professionalColors;
-                
 
                 chartElement.data.forEach((trace, index) => {
                     const isTrendLine = this._isTrendLine(trace);
@@ -358,39 +348,18 @@ class ReportGenerator {
                         groupSymbol = this._getSymbolByHash(animalId, 5);
                     }
                     
-                    if (trace.line) {
-                        trace.line.color = animalColor;
-                        trace.line.width = isTrendLine ? 4 : 3;
-                    } else if (trace.type === 'scatter') {
-                        trace.line = {
-                            color: animalColor,
-                            width: isTrendLine ? 4 : 3
-                        };
-                    }
+                    trace.line = trace.line || {};
+                    trace.line.color = animalColor;
+                    trace.line.width = isTrendLine ? 4 : 3;
                     
-                    if (trace.marker) {
+                    if (trace.mode?.includes('markers') || trace.marker) {
+                        trace.marker = trace.marker || {};
                         trace.marker.color = animalColor;
                         trace.marker.size = 10;
+                        trace.marker.line = { color: '#000000', width: 0.8 };
                         if (groupSymbol) {
                             trace.marker.symbol = groupSymbol;
                         }
-                        trace.marker.line = {
-                            color: '#000000',
-                            width: 0.8
-                        };
-                    } else if (trace.mode?.includes('markers')) {
-                        const markerConfig = {
-                            color: animalColor,
-                            size: 10,
-                            line: {
-                                color: '#000000',
-                                width: 0.8
-                            }
-                        };
-                        if (groupSymbol) {
-                            markerConfig.symbol = groupSymbol;
-                        }
-                        trace.marker = markerConfig;
                     }
                 });
                 
@@ -406,49 +375,27 @@ class ReportGenerator {
                     }
                 });
 
-                if (this.chartService?.chartPoolManager?.applyTemporaryTheme) {
-                    try {
-                        originalLayout = await this.chartService.chartPoolManager.applyTemporaryTheme(chartId, whiteLayout);
-                    } catch (error) {
-                        await Plotly.relayout(chartElement, whiteLayout);
-                    }
-                } else {
-                    await Plotly.relayout(chartElement, whiteLayout);
-                }
+                await Plotly.relayout(chartElement, whiteLayout);
 
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             let capturedImage = null;
-            if (typeof html2canvas !== 'undefined') {
+            if (hasPlotlyData && typeof Plotly !== 'undefined') {
                 try {
-                    const canvas = await html2canvas(chartElement, {
-                        backgroundColor: '#ffffff',
-                        scale: 2,
-                        useCORS: true
+                    capturedImage = await Plotly.toImage(chartElement, {
+                        format: 'png',
+                        width: 800,
+                        height: chartId === 'mainChart' ? 300 : 280,
+                        scale: 2
                     });
-                    capturedImage = canvas.toDataURL('image/png');
                 } catch (error) {
                     capturedImage = null;
                 }
             }
 
             if (hasPlotlyData && originalLayout) {
-                if (this.chartService?.chartPoolManager?.restoreTheme) {
-                    try {
-                        await this.chartService.chartPoolManager.restoreTheme(chartId, originalLayout);
-                        await Plotly.restyle(chartElement, originalData.map(trace => ({
-                            'line.color': trace.line?.color,
-                            'marker.color': trace.marker?.color,
-                            'line.width': trace.line?.width,
-                            'marker.size': trace.marker?.size
-                        })));
-                    } catch (error) {
-                        await Plotly.react(chartElement, originalData, originalLayout);
-                    }
-                } else {
-                    await Plotly.react(chartElement, originalData, originalLayout);
-                }
+                await Plotly.react(chartElement, originalData, originalLayout);
             }
 
             return capturedImage;
@@ -1812,21 +1759,18 @@ class ReportGenerator {
                     </div>
                 </div>
 
-                <!-- Data Quality & Outlier Analysis Section -->
                 ${this._generateOutlierAnalysisHTML() ? `
                 <div class="section">
                     ${this._generateOutlierAnalysisHTML()}
                 </div>
                 ` : ''}
 
-                <!-- Model Homogeneity Analysis Section -->
                 ${this._generateHomogeneityAnalysisHTML() ? `
                 <div class="section">
                     ${this._generateHomogeneityAnalysisHTML()}
                 </div>
                 ` : ''}
 
-                <!-- Growth Analysis Charts Section -->
                 <div class="section">
                     <h2>Growth Analysis Charts</h2>
                     
@@ -1843,9 +1787,9 @@ class ReportGenerator {
 
                     ${data.normalizedChartImg ? `
                     <div class="chart-container">
-                        <h3>Normalized Growth Functions Comparison</h3>
+                        <h3 style="margin-top: -15px;">Normalized Growth Functions Comparison</h3>
                         <img src="${data.normalizedChartImg}" alt="Normalized Growth Comparison Chart" />
-                        <p style="font-size: 0.9rem; color: var(--light-text); margin-top: 15px;">
+                        <p style="font-size: 0.9rem; color: var(--light-text); margin-top: 50px;">
                             Normalized growth functions comparing different experimental groups. 
                             Functions are scaled to initial value for direct comparison of growth patterns.
                         </p>
@@ -1853,11 +1797,9 @@ class ReportGenerator {
                     ` : '<p style="color: var(--light-text);">Normalized chart not available</p>'}
                 </div>
 
-                <!-- Detailed Analysis Results Section -->
                 <div class="section">
                     <h2>Detailed Analysis Results</h2>
                     
-                    <!-- Group Statistics Summary -->
                     ${this._generateGroupStatisticsSummary(data)}
                     
                     <table class="data-table">
@@ -2578,12 +2520,9 @@ class ReportGenerator {
      * @returns {object} Object with color and symbol properties
      */
     _getAnimalVisualProps(animalId, animalIndex, groupName) {
-        // First check stored visual data from chart processing
         if (this.animalVisualData[animalId]) {
             return this.animalVisualData[animalId];
         }
-        
-        // Fallback to generating consistent values
         return {
             color: this._getColorByHash(animalId, 7),
             symbol: this._getSymbolByHash(animalId, 5)
@@ -2595,7 +2534,6 @@ class ReportGenerator {
             return '';
         }
 
-        // Generate legend items for each individual animal
         const animalItems = processedData.validAnimals.map((animal, index) => {
             const visualProps = this._getAnimalVisualProps(animal.id, index, animal.group);
             const animalColor = visualProps.color;
@@ -2627,8 +2565,8 @@ class ReportGenerator {
 
         return `
             <div class="animal-legend" style="
-                padding: 12px 12% 12px 3%;
-                margin-top: -30px;
+                padding: 12px 12px;
+                margin-top: 35px;
                 text-align: center;
             ">
                 <div style="
