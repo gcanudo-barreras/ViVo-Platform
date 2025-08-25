@@ -377,7 +377,7 @@ class ReportGenerator {
 
                 await Plotly.relayout(chartElement, whiteLayout);
 
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
             let capturedImage = null;
@@ -387,7 +387,7 @@ class ReportGenerator {
                         format: 'png',
                         width: 800,
                         height: chartId === 'mainChart' ? 300 : 280,
-                        scale: 1
+                        scale: 2
                     });
                 } catch (error) {
                     capturedImage = null;
