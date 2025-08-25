@@ -1,15 +1,6 @@
-class TGRWorker {
-    constructor() {
-        this.logCache = new Map();
-    }
+importScripts('../core/MathUtils.js');
 
-    fastLog(value) {
-        const cached = this.logCache.get(value);
-        if (cached !== undefined) return cached;
-        const result = Math.log(value);
-        this.logCache.set(value, result);
-        return result;
-    }
+class TGRWorker {
 
     processMatrix(allDays, animals) {
         const dayCount = allDays.length;
@@ -36,8 +27,10 @@ class TGRWorker {
                         const valueY = animal.measurements[yIdx];
                         
                         if (valueX > 0 && valueY > 0) {
-                            const r = this.fastLog(valueY / valueX) / (dayY - dayX);
-                            individualTGRs.push(r);
+                            const r = MathUtils.calculateTumorGrowthRate(valueX, valueY, dayX, dayY);
+                            if (!isNaN(r)) {
+                                individualTGRs.push(r);
+                            }
                         }
                     }
                 }

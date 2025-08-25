@@ -1,11 +1,4 @@
 class DataAnalysisWorker {
-    constructor() {
-        this.hasLogger = typeof Logger !== 'undefined';
-    }
-
-    _logError(message) {
-        this.hasLogger ? Logger.error(`[DataWorker] ${message}`) : console.error(`[DataWorker] ${message}`);
-    }
 
     _createErrorResult() {
         return {
@@ -45,7 +38,6 @@ class DataAnalysisWorker {
     _filterValidData(x, y) {
         const validData = [];
         for (let i = 0; i < x.length && i < y.length; i++) {
-            // Consolidated validation logic
             if (y[i] > 0 && !isNaN(y[i]) && isFinite(y[i]) && !isNaN(x[i]) && isFinite(x[i])) {
                 validData.push({ x: x[i], y: y[i] });
             }
@@ -63,13 +55,12 @@ class DataAnalysisWorker {
     _performLinearRegression(validX, validY) {
         const n = validX.length;
         
-        // Consolidated sum calculations
         const sumX = validX.reduce((a, b) => a + b, 0);
         const sumY = validY.reduce((a, b) => a + b, 0);
         const sumXY = validX.reduce((sum, x, i) => sum + x * validY[i], 0);
         const sumX2 = validX.reduce((sum, x) => sum + x * x, 0);
 
-        // Prevent division by zero
+
         const denominator = n * sumX2 - sumX * sumX;
         if (Math.abs(denominator) <= Number.EPSILON) {
             throw new Error('Cannot calculate regression: insufficient variation in X values');
@@ -88,7 +79,6 @@ class DataAnalysisWorker {
             ssTot += Math.pow(validY[i] - yMean, 2);
         }
 
-        // Prevent division by zero in R² calculation
         const r2 = ssTot > Number.EPSILON ? Math.max(0, 1 - (ssRes / ssTot)) : 0;
         return { a, b, r2 };
     }
@@ -111,7 +101,6 @@ class DataAnalysisWorker {
                 }
 
             } catch (error) {
-                this._logError(`Error processing animal ${animal.id}: ${error.message}`);
                 results.push({ ...animal, model: { error: error.message }, metrics: null });
             }
         }
@@ -120,7 +109,6 @@ class DataAnalysisWorker {
     }
 
     _calculateAnimalMetrics(measurements) {
-        // Use consolidated validation for positive values
         const validMeasurements = measurements.filter(v => !isNaN(v) && isFinite(v) && v > 0);
         
         if (validMeasurements.length === 0) {
@@ -218,7 +206,6 @@ self.addEventListener('message', function(e) {
                 throw new Error(`Unknown message type: ${type}`);
         }
     } catch (error) {
-        worker._logError(`Error processing message: ${error.message}`);
         self.postMessage({
             type: 'error',
             requestId,

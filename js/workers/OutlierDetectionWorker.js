@@ -1,9 +1,6 @@
-// Import MathUtils from main thread
 importScripts('../core/MathUtils.js');
 
 class OutlierWorker {
-    constructor() {
-    }
 
     createFlag(type, animal, day, value, extra = {}) {
         return {
@@ -37,7 +34,6 @@ class OutlierWorker {
                     const dayDiff = day - prevDay;
                     
                     if (prev > 0 && dayDiff > 0) {
-                        // Use exact same TGR calculation as main thread
                         const r = MathUtils.calculateTumorGrowthRate(prev, val, prevDay, day);
                         if (!isNaN(r)) {
                             const absR = Math.abs(r);
@@ -72,12 +68,10 @@ class OutlierWorker {
     }
 
     detectIntraAnimalOutliers(animal, config) {
-        // Use exact same logic as main thread: MathUtils.validateNumericData
         const validMeasurements = MathUtils.validateNumericData(animal.measurements, true);
         const logVals = validMeasurements.map(v => Math.log(v));
         if (logVals.length < 4) return;
 
-        // Use exact same IQR calculation as main thread: MathUtils.calculateIQRBounds
         const bounds = MathUtils.calculateIQRBounds(logVals, config.iqrSensitivity);
 
         animal.measurements.forEach((v, i) => {
@@ -87,7 +81,6 @@ class OutlierWorker {
             if (outlier && animal.timePoints[i] !== 0) {
                 const flag = this.createFlag('INTRA_OUTLIER', animal, animal.timePoints[i], v);
                 animal.flags.push(flag);
-                // Also add to flaggedMeasurements like main thread does
                 const existing = animal.flaggedMeasurements.find(f => f.index === i);
                 if (existing) {
                     existing.flags.push(flag);
@@ -104,7 +97,6 @@ class OutlierWorker {
     }
 
     analyzeGroupOutliers(groupAnimals, groupName, config) {
-        // Use exact same logic as main thread
         const days = {};
         groupAnimals.forEach(a => a.timePoints.forEach((d, i) => {
             const val = a.measurements[i];
@@ -117,7 +109,6 @@ class OutlierWorker {
             const vals = days[d];
             if (vals.length < config.minGroupSizeForIQR) continue;
             
-            // Use exact same IQR calculation as main thread
             const bounds = MathUtils.calculateIQRBounds(vals, config.iqrSensitivity);
 
             groupAnimals.forEach(a => {
