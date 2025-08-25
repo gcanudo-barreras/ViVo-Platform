@@ -118,7 +118,7 @@
         </header>
 
 
-        <!-- Welcome Banner for First-Time Users -->
+        <!-- Welcome Banner -->
         <div id="welcomeBanner" class="welcome-banner welcome-hidden">
             <button class="welcome-close" onclick="hideWelcomeBanner()" title="Close Welcome Banner">×</button>
             <div class="welcome-content">
@@ -282,12 +282,9 @@
 
     <script>
         // Core modules and utilities are now loaded from separate files
-        // Legacy compatibility is maintained automatically
         const debounce = AppUtilities.debounce;
         const throttle = AppUtilities.throttle;
         const states = OUTLIER_STATES;
-
-
         
         function resetFileLabel(fileLabel) {
             if (!fileLabel) return;
@@ -299,7 +296,6 @@
             fileLabel.style.borderColor = 'rgba(79, 172, 254, 0.5)';
             fileLabel.style.background = 'linear-gradient(135deg, rgba(79, 172, 254, 0.1), rgba(0, 153, 204, 0.1))';
         }
-
 
         function checkLibraries() {
             const results = {
