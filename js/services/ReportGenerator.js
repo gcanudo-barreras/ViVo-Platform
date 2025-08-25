@@ -5,6 +5,7 @@
 class ReportGenerator {
     constructor() {
         this.chartService = null;
+        this.animalVisualData = {};
         this.professionalColors = [
             '#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#593E25',
             '#1B998B', '#7209B7', '#F72585', '#4361EE', '#277DA1'
@@ -15,7 +16,8 @@ class ReportGenerator {
         ];
         this.symbolMap = {
             'circle': '●', 'square': '■', 'diamond': '◆', 'triangle-up': '▲',
-            'triangle-down': '▼', 'star': '★', 'hexagon': '⬢', 'cross': '✚', 'x': '✖'
+            'triangle-down': '▼', 'star': '★', 'hexagon': '⬢', 'pentagon': '⬟', 
+            'cross': '✚', 'x': '✖'
         };
     }
 
@@ -213,6 +215,7 @@ class ReportGenerator {
 
     async generateCompleteHTMLReport(options = {}) {
         try {
+            this.animalVisualData = {};
             
             const globalData = this._getGlobalData();
             
@@ -334,7 +337,7 @@ class ReportGenerator {
                         t: 20,
                         b: 50
                     },
-                    height: chartId === 'mainChart' ? 400 : 350 // Reduced height for MainChart
+                    height: chartId === 'mainChart' ? 400 : 350
                 };
 
                 const professionalColors = this.professionalColors;
@@ -345,17 +348,14 @@ class ReportGenerator {
                     let groupName, animalColor, groupSymbol;
                     
                     if (isTrendLine) {
-                        // Trend lines: use consistent group color
                         groupName = this._extractGroupFromTrendLine(trace);
-                        animalColor = this._getConsistentGroupColor(groupName);
-                        groupSymbol = null; // No symbols for trend lines
+                        animalColor = this._getColorByHash(groupName, 5);
+                        groupSymbol = null;
                     } else {
-                        // Individual animal points: use centralized visual properties method
                         groupName = this._extractGroupFromScatterTrace(trace);
                         const animalId = this._extractAnimalIdFromTrace(trace);
-                        const visualProps = this._getAnimalVisualProps(animalId, index, groupName);
-                        animalColor = visualProps.color;
-                        groupSymbol = visualProps.symbol;
+                        animalColor = this._getColorByHash(animalId, 7);
+                        groupSymbol = this._getSymbolByHash(animalId, 5);
                     }
                     
                     if (trace.line) {
@@ -370,25 +370,23 @@ class ReportGenerator {
                     
                     if (trace.marker) {
                         trace.marker.color = animalColor;
-                        trace.marker.size = 10; // Larger size for A4 printing
-                        // Apply group-specific symbols to all points (including trend line markers)
+                        trace.marker.size = 10;
                         if (groupSymbol) {
                             trace.marker.symbol = groupSymbol;
                         }
                         trace.marker.line = {
                             color: '#000000',
-                            width: 0.8 // Thin black border for definition
+                            width: 0.8
                         };
                     } else if (trace.mode?.includes('markers')) {
                         const markerConfig = {
                             color: animalColor,
-                            size: 10, // Larger size for A4 printing
+                            size: 10,
                             line: {
                                 color: '#000000',
-                                width: 0.8 // Thin black border for definition
+                                width: 0.8
                             }
                         };
-                        // Apply group-specific symbols
                         if (groupSymbol) {
                             markerConfig.symbol = groupSymbol;
                         }
@@ -396,6 +394,17 @@ class ReportGenerator {
                     }
                 });
                 
+                chartElement.data.forEach((trace, index) => {
+                    if (!this._isTrendLine(trace) && trace.marker && trace.mode?.includes('markers')) {
+                        const animalId = this._extractAnimalIdFromTrace(trace);
+                        if (animalId) {
+                            this.animalVisualData[animalId] = {
+                                color: trace.marker.color,
+                                symbol: trace.marker.symbol || 'circle'
+                            };
+                        }
+                    }
+                });
 
                 if (this.chartService?.chartPoolManager?.applyTemporaryTheme) {
                     try {
@@ -407,7 +416,6 @@ class ReportGenerator {
                     await Plotly.relayout(chartElement, whiteLayout);
                 }
 
-                // Brief wait for layout changes to apply
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
@@ -1723,7 +1731,7 @@ class ReportGenerator {
             <div class="report-container">
                 <div class="header">
                     <div class="logo-container">
-                        <img src="https://raw.githubusercontent.com/gcanudo-barreras/vivo-platform/main/Assets/ViVo_day.png" alt="ViVo Logo" style="width: 256px; height: 256px;">
+                        <img src="https://raw.githubusercontent.com/gcanudo-barreras/vivo-platform/main/assets/ViVo_day.png" alt="ViVo Logo" style="width: 256px; height: 256px;">
                     </div>
                     <h1>ViVo: Complete Analysis Report</h1>
                     <div class="header-subtitle">In Vivo Metrics - ${data.measurementType} Analysis</div>
@@ -2251,7 +2259,9 @@ class ReportGenerator {
 
     _extractAnimalIdFromTrace(trace) {
         if (!trace?.name || typeof trace.name !== 'string') return 'Unknown';
-        return trace.name.trim();
+        // Extract just the animal ID part, removing group info in parentheses
+        const match = trace.name.match(/^([^\s(]+)/);
+        return match ? match[1].trim() : trace.name.trim();
     }
     
     _normalizeGroupName(name) {
@@ -2546,28 +2556,17 @@ class ReportGenerator {
         return Math.abs(hash);
     }
     
-    _getConsistentGroupColor(groupName) {
-        if (!groupName || groupName === 'Unknown') return this.professionalColors[0];
-        const colorIndex = this._generateHash(groupName, 5) % this.professionalColors.length;
+
+    _getColorByHash(id, seed) {
+        if (!id || id === 'Unknown') return this.professionalColors[0];
+        const colorIndex = this._generateHash(id, seed) % this.professionalColors.length;
         return this.professionalColors[colorIndex];
     }
-    
-    _getConsistentGroupSymbol(groupName) {
-        if (!groupName || groupName === 'Unknown') return this.groupSymbols[0];
-        const symbolIndex = this._generateHash(groupName, 3) % this.groupSymbols.length;
-        return this.groupSymbols[symbolIndex];
-    }
 
-    _getConsistentAnimalSymbol(animalId) {
-        if (!animalId || animalId === 'Unknown') return this.groupSymbols[0];
-        const symbolIndex = this._generateHash(animalId, 5) % this.groupSymbols.length;
+    _getSymbolByHash(id, seed) {
+        if (!id || id === 'Unknown') return this.groupSymbols[0];
+        const symbolIndex = this._generateHash(id, seed) % this.groupSymbols.length;
         return this.groupSymbols[symbolIndex];
-    }
-
-    _getAnimalColorFromChart(animalId, animalIndex) {
-        if (!animalId || animalId === 'Unknown') return this.professionalColors[0];
-        const colorIndex = this._generateHash(animalId, 7) % this.professionalColors.length;
-        return this.professionalColors[colorIndex];
     }
 
     /**
@@ -2579,9 +2578,15 @@ class ReportGenerator {
      * @returns {object} Object with color and symbol properties
      */
     _getAnimalVisualProps(animalId, animalIndex, groupName) {
+        // First check stored visual data from chart processing
+        if (this.animalVisualData[animalId]) {
+            return this.animalVisualData[animalId];
+        }
+        
+        // Fallback to generating consistent values
         return {
-            color: this._getAnimalColorFromChart(animalId, animalIndex),
-            symbol: this._getConsistentGroupSymbol(groupName)
+            color: this._getColorByHash(animalId, 7),
+            symbol: this._getSymbolByHash(animalId, 5)
         };
     }
 
