@@ -151,8 +151,7 @@ class WorkerUtility {
      * Check if workers are supported in current environment
      */
     static isWorkerSupported() {
-        return false;
-        //return typeof Worker !== 'undefined' && window.location.protocol !== 'file:';
+        return typeof Worker !== 'undefined' && window.location.protocol !== 'file:';
     }
 
     /**
