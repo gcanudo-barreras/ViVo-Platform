@@ -1678,7 +1678,7 @@ class ReportGenerator {
             <div class="report-container">
                 <div class="header">
                     <div class="logo-container">
-                        <img src="https://raw.githubusercontent.com/gcanudo-barreras/vivo-platform/main/assets/ViVo_day.png" alt="ViVo Logo" style="width: 256px; height: 256px;">
+                        <img src="https://raw.githubusercontent.com/gcanudo-barreras/vivo-platform/main/Assets/ViVo_day.png" alt="ViVo Logo" style="width: 256px; height: 256px;">
                     </div>
                     <h1>ViVo: Complete Analysis Report</h1>
                     <div class="header-subtitle">In Vivo Metrics - ${data.measurementType} Analysis</div>
