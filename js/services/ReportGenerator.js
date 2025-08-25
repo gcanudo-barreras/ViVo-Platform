@@ -387,7 +387,7 @@ class ReportGenerator {
                         format: 'png',
                         width: 800,
                         height: chartId === 'mainChart' ? 300 : 280,
-                        scale: 2
+                        scale: 1
                     });
                 } catch (error) {
                     capturedImage = null;
