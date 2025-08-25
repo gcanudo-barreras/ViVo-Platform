@@ -11,8 +11,7 @@ class IntelligentOutlierDetector {
         } else {
             this.config = config;
         }
-        this.useWebWorkers = false;
-        //this.useWebWorkers = WorkerUtility.isWorkerSupported();
+        this.useWebWorkers = WorkerUtility.isWorkerSupported();
         this.reset();
     }
 
