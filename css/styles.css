@@ -793,6 +793,7 @@ input[type="number"]:focus {
     gap: 20px;
     justify-content: center;
     margin: 0.75rem 0;
+    flex-wrap: wrap;
 }
 
 .help-action-btn:hover {
