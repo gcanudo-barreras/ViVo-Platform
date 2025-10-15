@@ -34,10 +34,10 @@ Open source tool designed to standardize in vivo efficacy analysis, improve rese
 ### Input Format
 The application accepts CSV files with the following structure:
 
-| Animal_ID |   Group   |   0   |   7   |   14   |   21   | ... |
-|-----------|-----------|-------|-------|--------|--------|-----|
-| Animal_1  |  Control  |  100  |  150  |   200  |   300  | ... |
-| Animal_2  | Treatment |   95  |  120  |   140  |   160  | ... |
+| Animal_ID |   Group   |   0   |   7   |   14   |   21   | ... | Tumor_Weight |
+|-----------|-----------|-------|-------|--------|--------|-----|--------------|
+| Animal_1  |  Control  |  100  |  150  |   200  |   300  | ... |     0.60     |
+| Animal_2  | Treatment |   95  |  120  |   140  |   160  | ... |     0.35     |
 
 ### Data Types Supported
 - **Tumor Volume**: Measurements in mm³
