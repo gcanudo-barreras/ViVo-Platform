@@ -30,15 +30,6 @@ class UIManager {
             }
         });
     }
-
-    copyReference() {
-      const text = document.getElementById('reference').innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        alert('Reference copied to the clipboard');
-      }).catch(err => {
-        console.error('Something went wrong. Try copying the reference manually.: ', err);
-      });
-    }
     
     generateAboutModalContent() {
         const version = window.DOMConfigurationManager?.getVersion();
@@ -238,6 +229,15 @@ class UIManager {
         `;
     }
 
+    copyReference() {
+      const text = document.getElementById('reference').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Reference copied to the clipboard');
+      }).catch(err => {
+        console.error('Something went wrong. Try copying the reference manually.: ', err);
+      });
+    }
+    
     parseAnimalDataFallback(rawData) {
         const groupedData = {};
         const dayColumns = [];
