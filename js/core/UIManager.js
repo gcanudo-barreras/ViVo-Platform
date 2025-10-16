@@ -134,16 +134,17 @@ class UIManager {
                                 <a href="https://orcid.org/0000-0003-0553-0695" target="_blank" style="text-decoration: none; background: #e0e0e0; padding: 3px 12px; border-radius: 18px; color: black">M. Concepción Gimeno</a> — <a href="mailto:gimeno@unizar.es" style="color: #e0e0e0;">gimeno@unizar.es</a>
                             </ul>
                         <p>Open source tool designed to standardize <i>in vivo</i> efficacy analysis, improve research reproducibility, and reduce animal usage.</p>
-                        <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
-                            This software is developed for research purposes. Please cite the original article when used in scientific publications.
-                            <p id="reference">Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. <i>ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage</i>. <i>bioRxiv</i> <strong>2025</strong>, DOI: <a href="https://doi.org/10.1101/2025.10.14.682266" target="_blank" style="color: white;">https://doi.org/10.1101/2025.10.14.682266</a></p>
-                            <button 
-                              onclick="window.uiManager.copyReference()"
-                              style="text-decoration: none; background: rgb(207, 81, 53); padding: 6px 10px; margin-bottom: 20px; border: none; border-radius: 18px; cursor: pointer; font-size: 14px; color: #e0e0e0">
-                              Copy citation
-                            </button>
-                            <p style="margin-top: 15px; font-size: 0.9em; color: #666;">All source code for the ViVo platform is available at <a href="https://github.com/gcanudo-barreras/ViVo-Platform" target="_blank" style="color: #a0a0a0;">github.com/gcanudo-barreras/ViVo-Platform</a> under the MIT License.
-                        </p></p>
+                            <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
+                                This software is developed for research purposes. Please cite the original article when used in scientific publications.
+                                <p id="reference">Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. <i>ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage</i>. <i>bioRxiv</i> <strong>2025</strong>, DOI: <a href="https://doi.org/10.1101/2025.10.14.682266" target="_blank" style="color: white;">https://doi.org/10.1101/2025.10.14.682266</a></p>
+                                <button 
+                                  onclick="window.uiManager.copyReference()"
+                                  style="text-decoration: none; background: rgb(207, 81, 53); padding: 6px 10px; margin-bottom: 20px; border: none; border-radius: 18px; cursor: pointer; font-size: 14px; color: #e0e0e0">
+                                  Copy citation
+                                </button>
+                                <p style="margin-top: 15px; font-size: 0.9em; color: #666;">All source code for the ViVo platform is available at <a href="https://github.com/gcanudo-barreras/ViVo-Platform" target="_blank" style="color: #a0a0a0;">github.com/gcanudo-barreras/ViVo-Platform</a> under the MIT License.
+                                </p>
+                            </p>
                         </p>
                     </div>
                 </div>
