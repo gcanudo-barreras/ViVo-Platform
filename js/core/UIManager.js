@@ -143,7 +143,7 @@ class UIManager {
                               Cite
                             </button>
                             <br>All source code for the ViVo platform is available at <a href="https://github.com/gcanudo-barreras/ViVo-Platform" target="_blank" style="color: #a0a0a0;">github.com/gcanudo-barreras/ViVo-Platform</a> under the MIT License.
-                        </p></br>
+                        </br></p>
                         </p>
                     </div>
                 </div>
