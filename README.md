@@ -278,8 +278,8 @@ The mathematical methodology implemented in this software was developed collabor
   - [Raquel P. Herrera](https://orcid.org/0000-0002-5244-9569). Contact [raquelph@unizar.es](mailto:raquelph@unizar.es)
   - [M. Concepción Gimeno](https://orcid.org/0000-0003-0553-0695). Contact [gimeno@unizar.es](mailto:gimeno@unizar.es)
 
-  For details, please refer to the original publication:
-  **[Full article title]**, *Journal Name*, Year. DOI: [insert DOI]
+For details, please refer to the original publication:
+Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. *ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage*., *bioRxiv*, **2025**. DOI: [https://doi.org/10.1101/2025.10.14.682266]
 
 ## License
 
