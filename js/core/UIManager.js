@@ -31,12 +31,12 @@ class UIManager {
         });
     }
 
-    function copyReference() {
+    copyReference() {
       const text = document.getElementById('reference').innerText;
       navigator.clipboard.writeText(text).then(() => {
-        alert('Referencia copiada al portapapeles');
+        alert('Reference copied to the clipboard');
       }).catch(err => {
-        console.error('Error al copiar la referencia: ', err);
+        console.error('Something went wrong. Try copying the reference manually.: ', err);
       });
     }
     
