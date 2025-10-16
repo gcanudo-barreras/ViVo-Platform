@@ -140,7 +140,7 @@ class UIManager {
                             <button 
                               onclick="window.uiManager.copyReference()"
                               style="text-decoration: none; background: rgb(207, 81, 53); padding: 6px 10px; margin-bottom: 20px; border: none; border-radius: 18px; cursor: pointer; font-size: 14px; color: #e0e0e0">
-                              Cite
+                              Copy citation
                             </button>
                             <br>All source code for the ViVo platform is available at <a href="https://github.com/gcanudo-barreras/ViVo-Platform" target="_blank" style="color: #a0a0a0;">github.com/gcanudo-barreras/ViVo-Platform</a> under the MIT License.
                         </br></p>
