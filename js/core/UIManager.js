@@ -136,7 +136,7 @@ class UIManager {
                         <p>Open source tool designed to standardize <i>in vivo</i> efficacy analysis, improve research reproducibility, and reduce animal usage.</p>
                             <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
                                 This software is developed for research purposes. Please cite the original article when used in scientific publications.
-                                <p id="reference">Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. <i>ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage</i>. <i>bioRxiv</i> <strong>2025</strong>, DOI: <a href="https://doi.org/10.1101/2025.10.14.682266" target="_blank" style="color: white;">https://doi.org/10.1101/2025.10.14.682266</a></p>
+                                <p id="reference">Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. <i>ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage</i>. <i>J. Med. Chem.</i> <strong>2025</strong>, DOI: <a href="https://doi.org/10.1021/acs.jmedchem.5c03326" target="_blank" style="color: white;">https://doi.org/10.1021/acs.jmedchem.5c03326</a></p>
                                 <button 
                                   onclick="window.uiManager.copyReference()"
                                   style="text-decoration: none; background: rgb(207, 81, 53); padding: 6px 10px; margin-bottom: 20px; border: none; border-radius: 18px; cursor: pointer; font-size: 14px; color: #e0e0e0">
@@ -230,7 +230,7 @@ class UIManager {
                         <p>Open source tool designed to standardize <i>in vivo</i> efficacy analysis, improve research reproducibility, and reduce animal usage.</p>
                             <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
                                 This software is developed for research purposes. Please cite the original article when used in scientific publications.
-                                <p id="reference" style="margin-top: 20px; margin-bottom: 10px;">Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. <i>ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage</i>. <i>bioRxiv</i> <strong>2025</strong>, DOI: <a href="https://doi.org/10.1101/2025.10.14.682266" target="_blank" style="color: white;">https://doi.org/10.1101/2025.10.14.682266</a></p>
+                                <p id="reference" style="margin-top: 20px; margin-bottom: 10px;">Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. <i>ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage</i>. <i>J. Med. Chem.</i> <strong>2025</strong>, DOI: <a href="https://doi.org/10.1021/acs.jmedchem.5c03326" target="_blank" style="color: white;">https://doi.org/10.1021/acs.jmedchem.5c03326</a></p>
                                 <button 
                                   onclick="window.uiManager.copyReference()"
                                   style="text-decoration: none; background: rgb(207, 81, 53); padding: 6px 10px; margin-bottom: 20px; border: none; border-radius: 18px; cursor: pointer; font-size: 14px; color: #e0e0e0">
