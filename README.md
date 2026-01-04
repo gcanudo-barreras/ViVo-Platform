@@ -280,7 +280,7 @@ The mathematical methodology implemented in this software was developed collabor
 
 For details, please refer to the original publication:
 
-Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. *ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage*. *bioRxiv*, **2025**. DOI: https://doi.org/10.1101/2025.10.14.682266
+Canudo-Barreras, G.; Romanos, E.; Herrera, R. P.; Gimeno, M. C. *ViVo: A temporal modeling framework that boosts statistical power and minimizes animal usage*. *J. Med. Chem.*, **2025**. DOI: [https://doi.org/10.1101/2025.10.14.682266](https://doi.org/10.1021/acs.jmedchem.5c03326)
 
 ## License
 
