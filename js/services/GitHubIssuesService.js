@@ -3,14 +3,14 @@ class GitHubIssuesService {
         this.owner = 'gcanudo-barreras';
         this.repo = 'ViVo-Platform';
         
-        // REEMPLAZA ESTO con la URL de tu función en Vercel (ej. 'https://tu-proyecto.vercel.app/api/github-proxy')
-        this.proxyBaseUrl = 'vivo-backend-one.vercel.app'; 
+        // REEMPLAZA ESTO con la URL exacta de tu función en Vercel
+        this.proxyBaseUrl = 'https://tu-proyecto.vercel.app/api/github-proxy'; 
         
         this.issues = [];
         this.initialized = false;
     }
 
-    // El frontend ya no maneja tokens; despierta al backend y valida que responda correctamente
+    // Llama al backend para validar que el servicio proxy responde correctamente
     async initialize() {
         try {
             await this.validateToken();
@@ -169,19 +169,20 @@ class GitHubIssuesService {
         return this.updateIssueState(issueNumber, 'open');
     }
 
-    // MODIFICADO: Redirige las peticiones HTTP hacia el Endpoint proxy de Vercel
+    // Encapsula el formato de la query string hacia Vercel
     async makeRequest(method, endpoint, data = null) {
         const url = `${this.proxyBaseUrl}?endpoint=${encodeURIComponent(endpoint)}&method=${method}`;
         
         const config = {
-            method: method === 'GET' ? 'GET' : 'POST', // Ajusta si tu backend procesa los cuerpos mediante POST mutados
+            method: 'POST', // Usamos POST para poder enviar cuerpos en peticiones mutables hacia Serverless
             headers: {
                 'Content-Type': 'application/json'
             }
         };
 
-        // Si el backend respeta el método original en la petición entrante, descomenta la siguiente línea:
-        config.method = method;
+        if (method === 'GET') {
+            config.method = 'GET';
+        }
 
         if (data && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
             config.body = JSON.stringify(data);
@@ -335,7 +336,7 @@ class GitHubIssuesService {
                 </div>
                 <div style="padding: 40px;">
                     <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(79, 172, 254, 0.2); border-top: 4px solid #4facfe; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                    <p style="color: #ccc; font-size: 1.1rem;">Loading GitHub Issues via Proxy...</p>
+                    <p style="color: #ccc; font-size: 1.1rem;">Securing proxy integration...</p>
                 </div>
                 <style>
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -350,7 +351,7 @@ class GitHubIssuesService {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px;">
                     <h2 style="margin: 0; color: #e0e0e0; font-size: 1.8rem;">
                         <i class="fab fa-github" style="margin-right: 10px; color: #4facfe;"></i>
-                        GitHub Issues
+                        GitHub Proxy Status
                     </h2>
                     <button class="welcome-close modal-close" title="Close">×</button>
                 </div>
@@ -478,12 +479,13 @@ class GitHubIssuesService {
     }
 }
 
+// Global instance and integration manager
 class GitHubIssuesManager {
     constructor() {
         this.service = new GitHubIssuesService();
         this.currentIssues = [];
         
-        // Auto-inicializar la conexión contra el proxy nada más instanciarse
+        // Inicialización automática y segura en background
         this.initBackend();
     }
     
@@ -491,7 +493,7 @@ class GitHubIssuesManager {
         try {
             await this.service.initialize();
         } catch (e) {
-            console.error("Backend validation failed on initialization:", e.message);
+            console.warn("Backend unreached on instantiation:", e.message);
         }
     }
 
@@ -499,13 +501,14 @@ class GitHubIssuesManager {
         window.modalManager.show('github-issues', { loading: true });
         try {
             await this.service.initialize();
-            this.showNotification('Connected to backend successfully!', 'success');
+            this.showNotification('Connected to proxy successfully!', 'success');
             this.showQuickReport();
         } catch (error) {
             window.modalManager.show('github-issues', { error: error.message });
         }
     }
 
+    // MODIFICADO: Tu propuesta estructural corregida de forma asíncrona robusta
     async submitQuickReport() {
         const type = document.getElementById('report-type')?.value;
         const title = document.getElementById('report-title')?.value?.trim();
@@ -541,18 +544,21 @@ class GitHubIssuesManager {
         try {
             this.showLoadingState();
             
+            // Reemplaza tus promesas/timeouts fijos por comprobación reactiva real:
             if (!this.service.initialized) {
-                await this.service.initialize();
+                await this.service.initialize(); 
             }
             
             const labels = this.service.getIssueLabels(type, config);
+            
+            // Ejecución segura de la mutación hacia Vercel
             const newIssue = await this.service.createIssue(issueTitle, issueBody, labels);
             
             if (Array.isArray(this.currentIssues)) {
                 this.currentIssues.unshift(newIssue);
             }
             
-            this.showNotification('Issue created successfully! Thank you.', 'success');
+            this.showNotification('Issue created successfully!', 'success');
             this.showSuccessMessage(newIssue);
             
         } catch (error) {
@@ -570,7 +576,6 @@ class GitHubIssuesManager {
     }
 
     showErrorState(errorMessage) {
-        this.service.initialized = false; // Reset state for explicit testing
         window.modalManager.show('github-issues', { error: errorMessage });
     }
 
@@ -596,7 +601,7 @@ class GitHubIssuesManager {
         setTimeout(() => {
             const modalContent = document.querySelector('.github-issues-modal');
             if (modalContent) modalContent.outerHTML = successHtml;
-        }, 400);
+        }, 300);
     }
 
     async showQuickReport() {
@@ -734,7 +739,7 @@ class GitHubIssuesManager {
     }
 }
 
-// Registro global en entorno del navegador
+// Inicialización del entorno web
 if (typeof window !== 'undefined') {
     window.GitHubIssuesService = GitHubIssuesService;
     window.githubIssues = new GitHubIssuesManager();
