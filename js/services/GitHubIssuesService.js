@@ -4,7 +4,7 @@ class GitHubIssuesService {
         this.repo = 'ViVo-Platform';
         
         // REEMPLAZA ESTO con la URL de tu función en Vercel (ej. 'https://tu-proyecto.vercel.app/api/github-proxy')
-        this.proxyBaseUrl = 'https://vercel.app/api/github-proxy'; 
+        this.proxyBaseUrl = 'vivo-backend-one.vercel.app'; 
         
         this.issues = [];
         this.initialized = false;
