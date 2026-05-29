@@ -2,42 +2,37 @@ class GitHubIssuesService {
     constructor() {
         this.owner = 'gcanudo-barreras';
         this.repo = 'ViVo-Platform';
-        this.token = null;
-        this.defaultToken = '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';
-        this.apiBase = 'https://api.github.com';
+        
+        // REEMPLAZA ESTO con la URL de tu función en Vercel (ej. 'https://tu-proyecto.vercel.app/api/github-proxy')
+        this.proxyBaseUrl = 'https://vercel.app/api/github-proxy'; 
+        
         this.issues = [];
         this.initialized = false;
-        this.useDefaultToken = true;
     }
 
-    async initialize(token) {
-        if (!token) {
-            throw new Error('GitHub token is required');
-        }
-        
-        this.token = token;
-        
+    // El frontend ya no maneja tokens; despierta al backend y valida que responda correctamente
+    async initialize() {
         try {
             await this.validateToken();
             this.initialized = true;
             return true;
         } catch (error) {
             this.initialized = false;
-            throw new Error(`Failed to initialize GitHub service: ${error.message}`);
+            throw new Error(`Failed to verify backend service: ${error.message}`);
         }
     }
 
     async validateToken() {
         const response = await this.makeRequest('GET', '/user');
         if (!response.ok) {
-            throw new Error('Invalid GitHub token');
+            throw new Error('Invalid or expired backend GitHub token');
         }
         return response.json();
     }
 
     ensureInitialized() {
         if (!this.initialized) {
-            throw new Error('GitHub service not initialized. Please provide a valid token.');
+            throw new Error('GitHub service not ready. Backend communication unverified.');
         }
     }
 
@@ -70,16 +65,11 @@ class GitHubIssuesService {
 
     getIssueLabels(type, config) {
         const labels = [];
-        const canUseLabels = this.token !== this.defaultToken;
-        
-        if (canUseLabels) {
-            try {
-                const labelName = config.label || 'bug';
-                labels.push(labelName);
-                if (type === 'bug') labels.push('needs-triage');
-            } catch (e) {
-            }
-        }
+        try {
+            const labelName = config.label || 'bug';
+            labels.push(labelName);
+            if (type === 'bug') labels.push('needs-triage');
+        } catch (e) {}
         return labels;
     }
 
@@ -94,10 +84,12 @@ class GitHubIssuesService {
     }
 
     updateIssueStateInCache(issueNumber, state) {
-        const issue = this.currentIssues.find(issue => issue.number === issueNumber);
-        if (issue) {
-            issue.state = state;
-            issue.closed_at = state === 'closed' ? new Date().toISOString() : null;
+        if (this.issues) {
+            const issue = this.issues.find(issue => issue.number === issueNumber);
+            if (issue) {
+                issue.state = state;
+                issue.closed_at = state === 'closed' ? new Date().toISOString() : null;
+            }
         }
     }
 
@@ -177,24 +169,23 @@ class GitHubIssuesService {
         return this.updateIssueState(issueNumber, 'open');
     }
 
+    // MODIFICADO: Redirige las peticiones HTTP hacia el Endpoint proxy de Vercel
     async makeRequest(method, endpoint, data = null) {
-        const url = `${this.apiBase}${endpoint}`;
-        const headers = {
-            'Authorization': `Bearer ${this.token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'ViVo-Platform/1.0'
+        const url = `${this.proxyBaseUrl}?endpoint=${encodeURIComponent(endpoint)}&method=${method}`;
+        
+        const config = {
+            method: method === 'GET' ? 'GET' : 'POST', // Ajusta si tu backend procesa los cuerpos mediante POST mutados
+            headers: {
+                'Content-Type': 'application/json'
+            }
         };
 
-        const config = {
-            method,
-            headers
-        };
+        // Si el backend respeta el método original en la petición entrante, descomenta la siguiente línea:
+        config.method = method;
 
         if (data && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
             config.body = JSON.stringify(data);
         }
-
 
         try {
             return await fetch(url, config);
@@ -224,12 +215,8 @@ class GitHubIssuesService {
     }
 
     generateModalContent(data = {}) {
-        const { issues = [], loading = false, error = null, token = '', showReportForm = false, sessionToken = '' } = data;
+        const { issues = [], loading = false, error = null, showReportForm = false } = data;
         
-        if (token === 'show-setup') {
-            return this.generateTokenSetupForm(sessionToken);
-        }
-
         if (showReportForm) {
             return this.generateQuickReportForm();
         }
@@ -238,7 +225,7 @@ class GitHubIssuesService {
             return this.generateIssuesListContent(issues);
         }
         
-        if (this.initialized && !token && !loading && !error) {
+        if (this.initialized && !loading && !error) {
             if (this.issues && this.issues.length > 0) {
                 return this.generateIssuesListContent(this.issues);
             } else {
@@ -246,10 +233,6 @@ class GitHubIssuesService {
             }
         }
         
-        if (!this.initialized && !token && !loading && !error) {
-            return this.generateQuickReportForm();
-        }
-
         if (loading) {
             return this.generateLoadingContent();
         }
@@ -258,7 +241,7 @@ class GitHubIssuesService {
             return this.generateErrorContent(error);
         }
 
-        return this.generateIssuesListContent(issues);
+        return this.generateQuickReportForm();
     }
 
     generateQuickReportForm() {
@@ -316,22 +299,10 @@ class GitHubIssuesService {
                         <textarea 
                             id="report-description" 
                             rows="6" 
-                            placeholder="Please provide details:&#10;• For bugs: steps to reproduce, expected vs actual behavior&#10;• For features: describe what you'd like to see&#10;• Include browser info if relevant&#10;• Screenshots or data examples are helpful"
+                            placeholder="Please provide details:&#10;• For bugs: steps to reproduce, expected vs actual behavior&#10;• For features: describe what you'd like to see"
                             style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0; resize: vertical; line-height: 1.5;"
                             required
                         ></textarea>
-                    </div>
-                    
-                    <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 25px;">
-                        <p style="margin: 0 0 10px 0; color: #ffc107; font-size: 0.9rem;">
-                            <i class="fas fa-lightbulb" style="margin-right: 8px;"></i>
-                            <strong>Tips for better reports:</strong>
-                        </p>
-                        <ul style="margin: 0; padding-left: 20px; color: #bbb; font-size: 0.85rem; line-height: 1.4;">
-                            <li>Be specific about what went wrong</li>
-                            <li>Include your browser and OS if relevant</li>
-                            <li>Mention what dataset/analysis you were running</li>
-                        </ul>
                     </div>
                 </form>
                 
@@ -340,81 +311,13 @@ class GitHubIssuesService {
                         <button onclick="window.githubIssues.submitQuickReport()" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">
                             <i class="fas fa-paper-plane" style="margin-right: 8px;"></i>Send Report
                         </button>
-                        <button onclick="window.githubIssues.showAdvancedOptions()" style="background: linear-gradient(45deg, #6c757d, #495057); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">
-                            <i class="fas fa-cog" style="margin-right: 8px;"></i>Advanced
+                        <button onclick="window.githubIssues.loadIssues()" style="background: linear-gradient(45deg, #6c757d, #495057); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">
+                            <i class="fas fa-list" style="margin-right: 8px;"></i>View Dashboard
                         </button>
                     </div>
                     <a href="https://github.com/${this.owner}/${this.repo}/issues" target="_blank" style="color: #4facfe; text-decoration: none; font-size: 0.9rem;">
-                        <i class="fab fa-github" style="margin-right: 6px;"></i>View all issues
+                        <i class="fab fa-github" style="margin-right: 6px;"></i>View on GitHub
                     </a>
-                </div>
-            </div>
-        `;
-    }
-
-    generateTokenSetupForm(sessionToken = '') {
-        return `
-            <div class="modal-content github-issues-modal" style="background: rgba(40, 40, 40, 0.95); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2); padding: 30px; max-width: 600px; width: 90%; color: #e0e0e0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 15px;">
-                    <h2 style="margin: 0; color: #e0e0e0; font-size: 1.8rem;">
-                        <i class="fab fa-github" style="margin-right: 10px; color: #4facfe;"></i>
-                        GitHub Issues
-                    </h2>
-                    <button class="welcome-close modal-close" title="Close">×</button>
-                </div>
-                
-                <div class="token-setup-section">
-                    <div style="background: rgba(79, 172, 254, 0.1); padding: 20px; border-radius: 10px; border-left: 4px solid #4facfe; margin-bottom: 20px;">
-                        <h3 style="margin: 0 0 10px 0; color: #4facfe;">Advanced: Manage Issues</h3>
-                        <p style="margin: 0 0 15px 0; color: #ccc; line-height: 1.5;">
-                            <strong>For developers and maintainers:</strong> Use your personal GitHub token to view, manage, and respond to issues. Regular users can simply use the "Back to Report" option.
-                        </p>
-                        <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin: 15px 0;">
-                            <p style="margin: 0 0 10px 0; font-weight: 600; color: #4facfe;">How to get your token:</p>
-                            <ol style="margin: 0; padding-left: 20px; color: #bbb; line-height: 1.5;">
-                                <li>Go to <a href="https://github.com/settings/tokens" target="_blank" style="color: #4facfe;">GitHub Settings → Developer Settings → Personal Access Tokens</a></li>
-                                <li>Click "Generate new token (classic)"</li>
-                                <li>Select scopes: <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px;">repo</code> (for full access) or <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px;">public_repo</code> (for public repos only)</li>
-                                <li>Copy the generated token</li>
-                            </ol>
-                        </div>
-                    </div>
-                    
-                    <div class="token-input-section">
-                        <label for="github-token-input" style="display: block; color: #4facfe; font-weight: 600; margin-bottom: 10px;">
-                            GitHub Personal Access Token:
-                        </label>
-                        <input 
-                            type="password" 
-                            id="github-token-input" 
-                            placeholder="ghp_xxxxxxxxxxxxxxxxxx" 
-                            value="${sessionToken}"
-                            style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0; font-family: monospace; margin-bottom: 20px;"
-                        />
-                        <div style="display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap;">
-                            <button 
-                                onclick="window.githubIssues.showQuickReport()" 
-                                style="background: #6c757d; color: white; border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;"
-                            >
-                                Back to Report
-                            </button>
-                            <div style="display: flex; gap: 8px;">
-                                <button 
-                                    onclick="window.githubIssues.setupToken()" 
-                                    style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;"
-                                >
-                                    <i class="fas fa-cogs" style="margin-right: 6px;"></i>Manage Issues
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 20px; padding: 15px; background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; border-radius: 8px;">
-                        <p style="margin: 0; color: #ffc107; font-size: 0.9rem;">
-                            <i class="fas fa-shield-alt" style="margin-right: 8px;"></i>
-                            Your token is stored locally in your browser session and is never sent to any server except GitHub's API.
-                        </p>
-                    </div>
                 </div>
             </div>
         `;
@@ -430,17 +333,12 @@ class GitHubIssuesService {
                     </h2>
                     <button class="welcome-close modal-close" title="Close">×</button>
                 </div>
-                
                 <div style="padding: 40px;">
                     <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(79, 172, 254, 0.2); border-top: 4px solid #4facfe; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                    <p style="color: #ccc; font-size: 1.1rem;">Loading GitHub Issues...</p>
+                    <p style="color: #ccc; font-size: 1.1rem;">Loading GitHub Issues via Proxy...</p>
                 </div>
-                
                 <style>
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
                 </style>
             </div>
         `;
@@ -455,12 +353,12 @@ class GitHubIssuesService {
                         GitHub Issues
                     </h2>
                     <button class="welcome-close modal-close" title="Close">×</button>
-                
+                </div>
                 <div style="background: rgba(220, 53, 69, 0.1); padding: 20px; border-radius: 10px; border-left: 4px solid #dc3545; text-align: center;">
                     <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 15px;"></i>
                     <h3 style="margin: 0 0 10px 0; color: #dc3545;">Connection Error</h3>
                     <p style="margin: 0 0 15px 0; color: #ccc;">${error}</p>
-                    <button onclick="window.modalManager.hide('github-issues'); setTimeout(() => window.modalManager.show('github-issues'), 100);" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                    <button onclick="window.githubIssues.retryConnection()" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
                         Try Again
                     </button>
                 </div>
@@ -485,7 +383,7 @@ class GitHubIssuesService {
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0; color: #e0e0e0; font-size: 1.8rem;">
                             <i class="fab fa-github" style="margin-right: 10px; color: #4facfe;"></i>
-                            ViVo Platform Issues
+                            ViVo Platform Issues (Dashboard)
                         </h2>
                         <button class="welcome-close modal-close" title="Close">×</button>
                     </div>
@@ -493,15 +391,15 @@ class GitHubIssuesService {
                     <div class="issues-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
                         <div style="background: rgba(79, 172, 254, 0.2); padding: 15px; border-radius: 8px; text-align: center;">
                             <div style="font-size: 1.5em; font-weight: bold; color: #4facfe;">${openIssues.length}</div>
-                            <div style="font-size: 0.9em; color: #bbb;">Open Issues</div>
+                            <div style="font-size: 0.9em; color: #bbb;">Open</div>
                         </div>
                         <div style="background: rgba(40, 167, 69, 0.2); padding: 15px; border-radius: 8px; text-align: center;">
                             <div style="font-size: 1.5em; font-weight: bold; color: #28a745;">${closedIssues.length}</div>
-                            <div style="font-size: 0.9em; color: #bbb;">Closed Issues</div>
+                            <div style="font-size: 0.9em; color: #bbb;">Closed</div>
                         </div>
                         <div style="background: rgba(255, 193, 7, 0.2); padding: 15px; border-radius: 8px; text-align: center;">
                             <div style="font-size: 1.5em; font-weight: bold; color: #ffc107;">${issues.length}</div>
-                            <div style="font-size: 0.9em; color: #bbb;">Total Issues</div>
+                            <div style="font-size: 0.9em; color: #bbb;">Total</div>
                         </div>
                     </div>
                     
@@ -512,9 +410,6 @@ class GitHubIssuesService {
                         <button onclick="window.githubIssues.refreshIssues()" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">
                             <i class="fas fa-sync-alt" style="margin-right: 8px;"></i>Refresh
                         </button>
-                        <a href="https://github.com/${this.owner}/${this.repo}/issues" target="_blank" style="background: linear-gradient(45deg, #6c757d, #495057); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: 600;">
-                            <i class="fab fa-github" style="margin-right: 8px;"></i>View on GitHub
-                        </a>
                     </div>
                 </div>
                 
@@ -583,90 +478,31 @@ class GitHubIssuesService {
     }
 }
 
-// Global instance and modal integration
 class GitHubIssuesManager {
     constructor() {
         this.service = new GitHubIssuesService();
         this.currentIssues = [];
         
-        // Try to restore token from session storage on startup
-        this.restoreTokenFromSession();
+        // Auto-inicializar la conexión contra el proxy nada más instanciarse
+        this.initBackend();
     }
     
-    restoreTokenFromSession() {
+    async initBackend() {
         try {
-            const savedToken = sessionStorage.getItem('github_token');
-            if (savedToken) {
-                this.service.initialize(savedToken).catch(() => {
-                    sessionStorage.removeItem('github_token');
-                });
-            }
-        } catch (error) {
-            // Silent fail
-        }
-    }
-    
-    saveTokenToSession(token) {
-        try {
-            sessionStorage.setItem('github_token', token);
-        } catch (error) {
-            // Silent fail
-        }
-    }
-    
-    clearTokenFromSession() {
-        try {
-            sessionStorage.removeItem('github_token');
-        } catch (error) {
-            // Silent fail
+            await this.service.initialize();
+        } catch (e) {
+            console.error("Backend validation failed on initialization:", e.message);
         }
     }
 
-    async setupToken() {
-        const tokenInput = document.getElementById('github-token-input');
-        const token = tokenInput?.value?.trim();
-        
-        if (!token) {
-            this.showNotification('Please enter a valid GitHub token', 'error');
-            return;
-        }
-
+    async retryConnection() {
+        window.modalManager.show('github-issues', { loading: true });
         try {
-            await window.modalManager.hide('github-issues');
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            window.modalManager.show('github-issues', { loading: true });
-            
-            await this.service.initialize(token);
-            this.saveTokenToSession(token);
-            
-            let issues;
-            try {
-                issues = await this.service.getIssues('all');
-            } catch (error) {
-                const openIssues = await this.service.getIssues('open');
-                const closedIssues = await this.service.getIssues('closed');
-                issues = [...openIssues, ...closedIssues];
-            }
-            this.currentIssues = issues;
-            
-            await window.modalManager.hide('github-issues');
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            window.modalManager.show('github-issues', { issues });
-            this.showNotification('Successfully connected to GitHub!', 'success');
+            await this.service.initialize();
+            this.showNotification('Connected to backend successfully!', 'success');
+            this.showQuickReport();
         } catch (error) {
-            await window.modalManager.hide('github-issues');
-            await new Promise(resolve => setTimeout(resolve, 100));
             window.modalManager.show('github-issues', { error: error.message });
-        }
-    }
-
-    getSessionToken() {
-        try {
-            return sessionStorage.getItem('github_token') || ''; 
-        } catch (error) {
-            return ''; 
         }
     }
 
@@ -680,7 +516,6 @@ class GitHubIssuesManager {
             return;
         }
 
-        // Map issue type to emoji and prefix for clear categorization
         const typeConfigs = {
             bug: { emoji: '🐛', prefix: '[BUG]' },
             enhancement: { emoji: '✨', prefix: '[FEATURE REQUEST]' },
@@ -692,7 +527,6 @@ class GitHubIssuesManager {
         const config = typeConfigs[type] || typeConfigs.other;
         const issueTitle = `${config.emoji} ${config.prefix} ${title}`;
         
-        // Add user agent info to help with debugging
         const issueBody = `${description}
 
 ---
@@ -702,85 +536,33 @@ class GitHubIssuesManager {
 - **User Agent:** ${navigator.userAgent}
 - **URL:** ${window.location.href}
 
-*This issue was submitted via the ViVo Platform reporting system*`;
+*This issue was submitted via the ViVo Platform secure proxy server*`;
 
         try {
             this.showLoadingState();
             
             if (!this.service.initialized) {
-                await this.service.initialize(this.service.defaultToken);
+                await this.service.initialize();
             }
             
-            const labels = this.getIssueLabels(type, config);
-            
+            const labels = this.service.getIssueLabels(type, config);
             const newIssue = await this.service.createIssue(issueTitle, issueBody, labels);
             
             if (Array.isArray(this.currentIssues)) {
                 this.currentIssues.unshift(newIssue);
             }
             
-            this.showNotification('Issue created successfully! Thank you for your feedback.', 'success');
-            
-            setTimeout(() => {
-                this.showNotification('Note: New issues may take 1-2 minutes to appear in the issues list due to GitHub API indexing.', 'info', 8000);
-            }, 2000);
-            
+            this.showNotification('Issue created successfully! Thank you.', 'success');
             this.showSuccessMessage(newIssue);
             
-            setTimeout(async () => {
-                try {
-                    if (this.service.initialized) {
-                        const issues = await this.service.getIssues('all');
-                        this.currentIssues = issues;
-                    }
-                } catch (error) {
-                    // Silent fail
-                }
-            }, 2000);
-            
         } catch (error) {
-            this.showNotification('Failed to submit report. Please try again or contact support.', 'error');
+            this.showNotification('Failed to submit report via backend.', 'error');
             this.showErrorState(error.message);
         }
     }
 
     showLoadingState() {
-        const loadingHtml = `
-            <div class="modal-content github-issues-modal" style="background: rgba(40, 40, 40, 0.95); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2); padding: 30px; max-width: 600px; width: 90%; color: #e0e0e0; text-align: center;">
-                <div style="margin-bottom: 30px;">
-                    <div class="loading-animation" style="width: 60px; height: 60px; border: 4px solid rgba(79, 172, 254, 0.2); border-top: 4px solid #4facfe; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;">
-                    </div>
-                    <h2 style="margin: 0 0 15px 0; color: #4facfe;">Submitting Report...</h2>
-                    <p style="color: #ccc; line-height: 1.5;">
-                        Please wait while we send your feedback to the development team.
-                    </p>
-                </div>
-                
-                <div class="loading-dots" style="display: flex; justify-content: center; gap: 8px; margin-top: 20px;">
-                    <div style="width: 12px; height: 12px; background: #4facfe; border-radius: 50%; animation: bounce 1.4s ease-in-out 0s infinite both;"></div>
-                    <div style="width: 12px; height: 12px; background: #4facfe; border-radius: 50%; animation: bounce 1.4s ease-in-out 0.16s infinite both;"></div>
-                    <div style="width: 12px; height: 12px; background: #4facfe; border-radius: 50%; animation: bounce 1.4s ease-in-out 0.32s infinite both;"></div>
-                </div>
-                
-                <style>
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                    
-                    @keyframes bounce {
-                        0%, 80%, 100% {
-                            transform: scale(0);
-                        }
-                        40% {
-                            transform: scale(1);
-                        }
-                    }
-                </style>
-            </div>
-        `;
-        
-        // Update modal content directly
+        const loadingHtml = this.service.generateLoadingContent();
         const modalContent = document.querySelector('.github-issues-modal');
         if (modalContent) {
             modalContent.outerHTML = loadingHtml;
@@ -788,48 +570,8 @@ class GitHubIssuesManager {
     }
 
     showErrorState(errorMessage) {
-        const errorHtml = `
-            <div class="modal-content github-issues-modal" style="background: rgba(40, 40, 40, 0.95); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2); padding: 30px; max-width: 600px; width: 90%; color: #e0e0e0; text-align: center;">
-                <div style="margin-bottom: 30px;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 20px; animation: shake 0.8s ease-in-out;"></i>
-                    <h2 style="margin: 0 0 15px 0; color: #dc3545;">Submission Failed</h2>
-                    <p style="color: #ccc; line-height: 1.5;">
-                        We couldn't submit your report right now. Please try again or contact support.
-                    </p>
-                </div>
-                
-                <div style="background: rgba(220, 53, 69, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 25px;">
-                    <p style="margin: 0; color: #dc3545; font-size: 0.9rem; word-break: break-word;">
-                        ${errorMessage ? errorMessage.substring(0, 200) + (errorMessage.length > 200 ? '...' : '') : 'Unknown error occurred'}
-                    </p>
-                </div>
-                
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button onclick="window.githubIssues.showQuickReport()" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-                        <i class="fas fa-redo" style="margin-right: 8px;"></i>Try Again
-                    </button>
-                    <button onclick="window.modalManager.hide('github-issues')" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-                        Close
-                    </button>
-                </div>
-                
-                <style>
-                    @keyframes shake {
-                        0%, 100% { transform: translateX(0); }
-                        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-                        20%, 40%, 60%, 80% { transform: translateX(5px); }
-                    }
-                </style>
-            </div>
-        `;
-        
-        // Update modal content directly
-        setTimeout(() => {
-            const modalContent = document.querySelector('.github-issues-modal');
-            if (modalContent) {
-                modalContent.outerHTML = errorHtml;
-            }
-        }, 100);
+        this.service.initialized = false; // Reset state for explicit testing
+        window.modalManager.show('github-issues', { error: errorMessage });
     }
 
     showSuccessMessage(issue) {
@@ -837,94 +579,36 @@ class GitHubIssuesManager {
             <div class="modal-content github-issues-modal" style="background: rgba(40, 40, 40, 0.95); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2); padding: 30px; max-width: 600px; width: 90%; color: #e0e0e0; text-align: center;">
                 <div style="margin-bottom: 30px;">
                     <i class="fas fa-check-circle" style="font-size: 48px; color: #28a745; margin-bottom: 20px;"></i>
-                    <h2 style="margin: 0 0 15px 0; color: #28a745;">Report Submitted Successfully!</h2>
-                    <p style="color: #ccc; line-height: 1.5;">
-                        Thank you for helping improve ViVo Platform. Your feedback is valuable to us.
-                    </p>
+                    <h2 style="margin: 0 0 15px 0; color: #28a745;">Report Submitted!</h2>
+                    <p style="color: #ccc;">Thank you for helping improve ViVo Platform.</p>
                 </div>
-                
                 <div style="background: rgba(40, 167, 69, 0.1); padding: 20px; border-radius: 10px; border-left: 4px solid #28a745; margin-bottom: 25px;">
-                    <p style="margin: 0 0 10px 0; color: #28a745; font-weight: 600;">
-                        Issue #${issue.number} created
-                    </p>
-                    <p style="margin: 0; color: #ccc; font-size: 0.9rem;">
-                        You can track the progress of your report using the link below.
-                    </p>
+                    <p style="margin: 0; color: #28a745; font-weight: 600;">Issue #${issue.number} processing</p>
                 </div>
-                
                 <div style="display: flex; gap: 10px; justify-content: center;">
-                    <a href="${issue.html_url}" target="_blank" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">
-                        <i class="fab fa-github" style="margin-right: 8px;"></i>View Issue
-                    </a>
-                    <button class="welcome-close modal-close" title="Close">×</button>
+                    <button onclick="window.githubIssues.loadIssues()" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        Go to Dashboard
                     </button>
+                    <button class="welcome-close modal-close" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">Close</button>
                 </div>
             </div>
         `;
-        
         setTimeout(() => {
             const modalContent = document.querySelector('.github-issues-modal');
-            if (modalContent) {
-                modalContent.outerHTML = successHtml;
-            }
-        }, 1000);
-    }
-
-    async showAdvancedOptions() {
-        try {
-            await window.modalManager.hide('github-issues');
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            if (window.modalManager.activeModal === 'github-issues') {
-                window.modalManager.activeModal = null;
-                const modal = window.modalManager.modals.get('github-issues');
-                if (modal) {
-                    modal.isOpen = false;
-                }
-            }
-            
-            const result = await window.modalManager.show('github-issues', { token: 'show-setup' });
-            
-            if (!result) {
-                setTimeout(() => {
-                    window.modalManager.show('github-issues', { token: 'show-setup' });
-                }, 500);
-            }
-        } catch (error) {
-            setTimeout(() => {
-                window.modalManager.show('github-issues', { token: 'show-setup' });
-            }, 500);
-        }
+            if (modalContent) modalContent.outerHTML = successHtml;
+        }, 400);
     }
 
     async showQuickReport() {
-        try {
-            // Close current modal first
-            await window.modalManager.hide('github-issues');
-            // Wait a bit longer to ensure modal is fully closed
-            await new Promise(resolve => setTimeout(resolve, 500));
-            // Show quick report modal
-            const result = await window.modalManager.show('github-issues', { showReportForm: true });
-            if (!result) {
-                setTimeout(() => {
-                    window.modalManager.show('github-issues', { showReportForm: true });
-                }, 500);
-            }
-        } catch (error) {
-            setTimeout(() => {
-                window.modalManager.show('github-issues', { showReportForm: true });
-            }, 500);
-        }
+        window.modalManager.show('github-issues', { showReportForm: true });
     }
 
     async loadIssues() {
+        window.modalManager.show('github-issues', { loading: true });
         try {
             if (!this.service.initialized) {
-                this.showNotification('Please configure GitHub token first using Advanced options.', 'warning');
-                return;
+                await this.service.initialize();
             }
-            
-            window.modalManager.show('github-issues', { loading: true });
             const issues = await this.service.getIssues('all');
             this.currentIssues = issues;
             window.modalManager.show('github-issues', { issues });
@@ -932,63 +616,22 @@ class GitHubIssuesManager {
             window.modalManager.show('github-issues', { error: error.message });
         }
     }
-    
-    async backToIssuesList() {
-        try {
-            await window.modalManager.hide('github-issues');
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            if (this.currentIssues && this.currentIssues.length > 0) {
-                const result = await window.modalManager.show('github-issues', { issues: this.currentIssues });
-                if (!result) {
-                    await this.loadIssues();
-                }
-            } else {
-                await this.loadIssues();
-            }
-        } catch (error) {
-            this.showNotification('Failed to load issues list', 'error');
-            await this.loadIssues();
-        }
-    }
 
     async refreshIssues() {
-        if (!this.service.initialized) {
-            this.showNotification('Please configure GitHub token first using Advanced options.', 'warning');
-            return;
-        }
-        
         try {
-            // Disable refresh button to prevent multiple clicks
             const refreshButton = document.querySelector('button[onclick*="refreshIssues()"]');
             if (refreshButton) {
                 refreshButton.disabled = true;
                 refreshButton.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>Refreshing...';
             }
             
-            this.showNotification('Refreshing issues...', 'info', 2000);
-            
-            // Clear cache and reload
-            this.currentIssues = [];
-            this.service.issues = [];
-            
-            // Show loading state
-            window.modalManager.show('github-issues', { loading: true });
-            
-            // Fetch fresh issues
             const issues = await this.service.getIssues('all');
             this.currentIssues = issues;
-            
-            // Show updated issues
             window.modalManager.show('github-issues', { issues });
-            
-            this.showNotification('Issues refreshed successfully!', 'success');
-            
+            this.showNotification('Issues updated!', 'success');
         } catch (error) {
-            this.showNotification('Failed to refresh issues', 'error');
-            window.modalManager.show('github-issues', { error: error.message });
+            this.showNotification('Failed to refresh data', 'error');
         } finally {
-            // Re-enable refresh button
             const refreshButton = document.querySelector('button[onclick*="refreshIssues()"]');
             if (refreshButton) {
                 refreshButton.disabled = false;
@@ -997,111 +640,29 @@ class GitHubIssuesManager {
         }
     }
 
-    showCreateIssueForm() {
-        const formHtml = this.generateCreateIssueForm();
-        const issuesModal = document.querySelector('.github-issues-modal .issues-container');
-        if (issuesModal) {
-            issuesModal.innerHTML = formHtml;
-        }
-    }
-
-    generateCreateIssueForm() {
-        return `
-            <div class="create-issue-form" style="background: rgba(255, 255, 255, 0.05); padding: 30px; border-radius: 10px;">
-                <h3 style="margin: 0 0 20px 0; color: #4facfe;">Create New Issue</h3>
-                
-                <div style="margin-bottom: 20px;">
-                    <label for="issue-title" style="display: block; color: #e0e0e0; font-weight: 600; margin-bottom: 8px;">Title:</label>
-                    <input type="text" id="issue-title" placeholder="Brief description of the issue" style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;">
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <label for="issue-body" style="display: block; color: #e0e0e0; font-weight: 600; margin-bottom: 8px;">Description:</label>
-                    <textarea id="issue-body" rows="6" placeholder="Detailed description of the issue, steps to reproduce, expected behavior, etc." style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0; resize: vertical;"></textarea>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <label for="issue-labels" style="display: block; color: #e0e0e0; font-weight: 600; margin-bottom: 8px;">Labels (comma-separated):</label>
-                    <input type="text" id="issue-labels" placeholder="bug, enhancement, help wanted" style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0;">
-                </div>
-                
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button onclick="window.githubIssues.cancelCreateIssue()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Cancel</button>
-                    <button onclick="window.githubIssues.submitNewIssue()" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Create Issue</button>
-                </div>
-            </div>
-        `;
-    }
-
-    async submitNewIssue() {
-        const title = document.getElementById('issue-title')?.value?.trim();
-        const body = document.getElementById('issue-body')?.value?.trim();
-        const labelsInput = document.getElementById('issue-labels')?.value?.trim();
-        
-        if (!title) {
-            this.showNotification('Please enter a title for the issue', 'error');
-            return;
-        }
-
-        const labels = labelsInput ? labelsInput.split(',').map(l => l.trim()).filter(l => l) : [];
-
-        try {
-            const newIssue = await this.service.createIssue(title, body, labels);
-            
-            // Add new issue to local cache immediately
-            if (this.currentIssues && Array.isArray(this.currentIssues)) {
-                this.currentIssues.unshift(newIssue); // Add to beginning (newest first)
-            }
-            
-            this.showNotification('Issue created successfully!', 'success');
-            
-            setTimeout(() => {
-                this.showNotification('Note: New issues may take 1-2 minutes to appear in the issues list due to GitHub API indexing.', 'info', 8000);
-            }, 2000);
-            
-            setTimeout(() => this.loadIssues(), 1000);
-        } catch (error) {
-            this.showNotification(`Failed to create issue: ${error.message}`, 'error');
-        }
-    }
-
-    cancelCreateIssue() {
-        this.loadIssues();
-    }
-
     async closeIssue(issueNumber) {
         try {
-            this.toggleButtonState(issueNumber, 'closeIssue', true, 'Closing...');
-            this.showNotification(`Closing issue #${issueNumber}...`, 'info', 1500);
-            
+            this.service.toggleButtonState(issueNumber, 'closeIssue', true, 'Closing...');
             await this.service.closeIssue(issueNumber);
-            this.showNotification(`Issue #${issueNumber} closed successfully!`, 'success');
-            
-            this.updateIssueStateInCache(issueNumber, 'closed');
-            await this.refreshCurrentView();
-            
+            this.showNotification(`Closed #${issueNumber}`, 'success');
+            this.service.updateIssueStateInCache(issueNumber, 'closed');
+            this.loadIssues();
         } catch (error) {
-            this.showNotification(`Failed to close issue: ${error.message}`, 'error');
-            
-            this.toggleButtonState(issueNumber, 'closeIssue', false, 'Close');
+            this.showNotification(error.message, 'error');
+            this.service.toggleButtonState(issueNumber, 'closeIssue', false, 'Close');
         }
     }
 
     async reopenIssue(issueNumber) {
         try {
-            this.toggleButtonState(issueNumber, 'reopenIssue', true, 'Reopening...');
-            this.showNotification(`Reopening issue #${issueNumber}...`, 'info', 1500);
-            
+            this.service.toggleButtonState(issueNumber, 'reopenIssue', true, 'Reopening...');
             await this.service.reopenIssue(issueNumber);
-            this.showNotification(`Issue #${issueNumber} reopened successfully!`, 'success');
-            
-            this.updateIssueStateInCache(issueNumber, 'open');
-            await this.refreshCurrentView();
-            
+            this.showNotification(`Reopened #${issueNumber}`, 'success');
+            this.service.updateIssueStateInCache(issueNumber, 'open');
+            this.loadIssues();
         } catch (error) {
-            this.showNotification(`Failed to reopen issue: ${error.message}`, 'error');
-            
-            this.toggleButtonState(issueNumber, 'reopenIssue', false, 'Reopen');
+            this.showNotification(error.message, 'error');
+            this.service.toggleButtonState(issueNumber, 'reopenIssue', false, 'Reopen');
         }
     }
 
@@ -1109,12 +670,10 @@ class GitHubIssuesManager {
         try {
             const comments = await this.service.getIssueComments(issueNumber);
             const commentsHtml = this.generateCommentsView(issueNumber, comments);
-            const issuesModal = document.querySelector('.github-issues-modal .issues-container');
-            if (issuesModal) {
-                issuesModal.innerHTML = commentsHtml;
-            }
+            const container = document.querySelector('.github-issues-modal .issues-container');
+            if (container) container.innerHTML = commentsHtml;
         } catch (error) {
-            this.showNotification(`Failed to load comments: ${error.message}`, 'error');
+            this.showNotification('Could not load comments', 'error');
         }
     }
 
@@ -1134,179 +693,55 @@ class GitHubIssuesManager {
             `).join('');
 
         return `
-            <div class="comments-view" style="height: 100%; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-shrink: 0;">
-                    <h3 style="margin: 0; color: #4facfe;">Comments for Issue #${issueNumber}</h3>
-                    <button onclick="window.githubIssues.backToIssuesList()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">← Back to Issues</button>
+            <div class="comments-view" style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; color: #4facfe;">Comments (#${issueNumber})</h3>
+                    <button onclick="window.githubIssues.loadIssues()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">← Back</button>
                 </div>
-                
-                ${issue ? `
-                    <div style="background: rgba(79, 172, 254, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #4facfe; flex-shrink: 0;">
-                        <h4 style="margin: 0 0 10px 0; color: #4facfe;">${issue.title}</h4>
-                        <p style="margin: 0; color: #ccc; line-height: 1.5;">${issue.body || 'No description provided.'}</p>
-                    </div>
-                ` : ''}
-                
-                <div class="comments-list" style="flex: 1; overflow-y: auto; margin-bottom: 20px; min-height: 200px;">
-                    ${commentsHtml}
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 5px 0;">${issue?.title || ''}</h4>
+                    <p style="margin: 0; color: #bbb; font-size: 0.95rem;">${issue?.body || ''}</p>
                 </div>
-                
-                <div class="add-comment-form" style="background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 8px; flex-shrink: 0;">
-                    <h4 style="margin: 0 0 15px 0; color: #e0e0e0;">Add Comment</h4>
-                    <textarea id="new-comment-body" rows="4" placeholder="Write your comment..." style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #e0e0e0; resize: vertical; margin-bottom: 10px;"></textarea>
-                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                        <button onclick="window.githubIssues.addComment(${issueNumber})" style="background: linear-gradient(45deg, #4facfe, #00f2fe); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Add Comment</button>
-                    </div>
+                <div class="comments-list">${commentsHtml}</div>
+                <div style="background: rgba(255, 255, 255, 0.03); padding: 15px; border-radius: 8px;">
+                    <textarea id="new-comment-body" rows="3" placeholder="Write a comment..." style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white; resize: vertical;"></textarea>
+                    <button onclick="window.githubIssues.addComment(${issueNumber})" style="margin-top: 10px; background: #4facfe; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; float: right;">Post Comment</button>
+                    <div style="clear: both;"></div>
                 </div>
             </div>
         `;
     }
 
     async addComment(issueNumber) {
-        const commentBody = document.getElementById('new-comment-body')?.value?.trim();
-        
-        if (!commentBody) {
-            this.showNotification('Please enter a comment', 'error');
-            return;
-        }
+        const body = document.getElementById('new-comment-body')?.value?.trim();
+        if (!body) return;
 
         try {
-            // Show loading state while adding comment
-            const submitButton = document.querySelector('button[onclick*="addComment"]');
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>Adding...';
-            }
-            
-            await this.service.addComment(issueNumber, commentBody);
-            this.showNotification('Comment added successfully!', 'success');
-            
-            const commentField = document.getElementById('new-comment-body');
-            if (commentField) commentField.value = '';
-            
-            await this.showComments(issueNumber);
-            this.updateIssueInCache(issueNumber);
-            
+            await this.service.addComment(issueNumber, body);
+            this.showNotification('Comment added!', 'success');
+            this.showComments(issueNumber);
         } catch (error) {
-            this.showNotification(`Failed to add comment: ${error.message}`, 'error');
+            this.showNotification('Failed to add comment', 'error');
         }
     }
 
     showNotification(message, type = 'info') {
         if (window.showNotification) {
-            const notificationType = { success: 'success', error: 'error', info: 'info' }[type] || 'info';
-            
-            window.showNotification(message, notificationType);
+            window.showNotification(message, type);
         } else {
-            alert(message);
-        }
-    }
-    
-    // New method to refresh current view without full modal close/reopen
-    async refreshCurrentView() {
-        try {
-            const issuesContainer = document.querySelector('.github-issues-modal .issues-container');
-            if (issuesContainer && this.currentIssues && this.currentIssues.length > 0) {
-                const filteredIssues = this.currentIssues.filter(issue => !issue.pull_request);
-                const issuesHtml = filteredIssues.map(issue => this.service.generateIssueCard(issue)).join('');
-                
-                const listContent = this.currentIssues.length === 0 ? 
-                    `<div style="text-align: center; padding: 40px; color: #999;">
-                        <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px;"></i>
-                        <p>No issues found in the repository.</p>
-                    </div>` : issuesHtml;
-                
-                issuesContainer.innerHTML = listContent;
-                this.updateIssueStats();
-                
-            } else if (this.currentIssues?.length > 0) {
-                window.modalManager.show('github-issues', { issues: this.currentIssues });
-            } else {
-                this.showNotification('Please refresh the issues list', 'info');
-            }
-        } catch (error) {
-            this.showNotification('Interface update failed, please refresh manually', 'error');
-        }
-    }
-    
-    updateIssueStats() {
-        try {
-            const issues = this.currentIssues.filter(issue => !issue.pull_request);
-            const openIssues = issues.filter(issue => issue.state === 'open');
-            const closedIssues = issues.filter(issue => issue.state === 'closed');
-            
-            const stats = [
-                { selector: '.github-issues-modal .issues-stats div:nth-child(1) div:first-child', value: openIssues.length },
-                { selector: '.github-issues-modal .issues-stats div:nth-child(2) div:first-child', value: closedIssues.length },
-                { selector: '.github-issues-modal .issues-stats div:nth-child(3) div:first-child', value: this.currentIssues.length }
-            ];
-            
-            stats.forEach(({ selector, value }) => {
-                const element = document.querySelector(selector);
-                if (element) element.textContent = value;
-            });
-        } catch (error) {
-            // Silent fail
-        }
-    }
-
-    async forceRefreshIssues() {
-        try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            this.currentIssues = [];
-            this.service.issues = [];
-            
-            window.modalManager.show('github-issues', { loading: true });
-            
-            const issues = await this.service.getIssues('all');
-            this.currentIssues = issues;
-            
-            window.modalManager.show('github-issues', { issues });
-            
-        } catch (error) {
-            this.showNotification('Failed to refresh issues', 'error');
-            if (this.currentIssues && this.currentIssues.length > 0) {
-                window.modalManager.show('github-issues', { issues: this.currentIssues });
-            } else {
-                window.modalManager.show('github-issues', { error: error.message });
-            }
-        }
-    }
-    
-    // New method to update a single issue in cache without full refresh
-    async updateIssueInCache(issueNumber) {
-        try {
-            const updatedIssue = await this.service.getIssue(issueNumber);
-            
-            const issueIndex = this.currentIssues.findIndex(issue => issue.number === issueNumber);
-            if (issueIndex !== -1) {
-                this.currentIssues[issueIndex] = updatedIssue;
-                
-                const serviceIndex = this.service.issues.findIndex(issue => issue.number === issueNumber);
-                if (serviceIndex !== -1) {
-                    this.service.issues[serviceIndex] = updatedIssue;
-                }
-            }
-        } catch (error) {
-            // Silent fail
+            console.log(`[${type.toUpperCase()}] ${message}`);
         }
     }
 }
 
-// Initialize global instance
+// Registro global en entorno del navegador
 if (typeof window !== 'undefined') {
     window.GitHubIssuesService = GitHubIssuesService;
     window.githubIssues = new GitHubIssuesManager();
     
-    // Register modal content generator
     const registerModal = () => {
         if (window.modalManager) {
             window.modalManager.register('github-issues', (data) => {
-                // Add session token to data if not already present
-                if (!data.sessionToken) {
-                    data.sessionToken = window.githubIssues.getSessionToken();
-                }
                 return window.githubIssues.service.generateModalContent.call(window.githubIssues.service, data);
             });
         } else {
