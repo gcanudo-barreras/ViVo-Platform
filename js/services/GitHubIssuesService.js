@@ -3,7 +3,7 @@ class GitHubIssuesService {
         this.owner = 'gcanudo-barreras';
         this.repo = 'ViVo-Platform';
         
-        this.proxyBaseUrl = 'vivo-backend-one.vercel.app'; 
+        this.proxyBaseUrl = 'https://vivo-backend-one.vercel.app/api/github-proxy'; 
         
         this.issues = [];
         this.initialized = false;
